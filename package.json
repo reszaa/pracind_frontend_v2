@@ -14,7 +14,11 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
+    "@primevue/themes": "^4.5.4",
+    "axios": "^1.18.1",
     "pinia": "^3.0.4",
+    "primeicons": "^8.0.0",
+    "primevue": "^5.0.0",
     "vue": "^3.5.38",
     "vue-router": "^5.1.0"
   },

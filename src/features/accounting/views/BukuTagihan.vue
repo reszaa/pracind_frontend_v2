@@ -1,9 +1,11 @@
 <!--
-  features/tagihan/views/BukuTagihan.vue
-  ======================================
-  Hutang dan piutang dalam SATU daftar terurut jatuh tempo — bukan dua
-  tabel terpisah. Alasannya: yang perlu dijawab layar ini adalah "apa yang
-  paling mendesak", dan yang mendesak bisa datang dari sisi mana pun.
+  src/features/accounting/BukuTagihan.vue
+  ========================================
+  Buku tagihan — tugas akunting. Hutang supplier dan piutang customer dalam
+  SATU daftar terurut jatuh tempo, bukan dua tabel terpisah.
+
+  Alasannya: pertanyaan yang dijawab layar ini adalah "apa yang paling
+  mendesak hari ini", dan yang mendesak bisa datang dari sisi mana pun.
   Garis warna di kiri membedakan arah; tab untuk menyaring bila perlu fokus.
 -->
 <template>
@@ -44,7 +46,7 @@
             <div v-else-if="tampil.length">
                 <div v-for="x in tampil" :key="`${x.arah}-${x.id}`" class="baris">
                     <span class="baris__arah" :class="`baris__arah--${x.arah}`"></span>
-                    <div class="baris__kiri">
+                    <div>
                         <p class="baris__nomor">{{ x.nomor }}</p>
                         <p class="baris__pihak">
                             {{ x.pihak }} ·
@@ -53,7 +55,9 @@
                     </div>
                     <div class="baris__kanan">
                         <span class="baris__nilai">{{ rp(x.sisa) }}</span>
-                        <span class="baris__tempo" :class="kelasTempo(x.hari)">{{ labelTempo(x.hari) }}</span>
+                        <span class="baris__tempo" :class="kelasTempo(x.hari)">
+                            {{ labelTempo(x.hari) }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -72,7 +76,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useTagihan } from '@/features/tagihan/composables/useTagihan'
+import { useTagihan } from '@/features/accounting/composables/useTagihan'
 import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LoadingBar from '@/components/ui/LoadingBar.vue'
@@ -84,7 +88,9 @@ const {
 
 onMounted(muat)
 
-const rp = (n) => `Rp ${Number(n).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`
+const rp = (n) =>
+    `Rp ${Number(n).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`
+
 const rpk = (n) => {
     const a = Number(n)
     if (Math.abs(a) >= 1e9) return `Rp ${(a / 1e9).toFixed(2)} M`
@@ -98,6 +104,7 @@ const labelTempo = (h) => {
     if (h === 0) return 'Jatuh tempo hari ini'
     return `${h} hari lagi`
 }
+
 const kelasTempo = (h) => {
     if (h === null) return 'aman'
     if (h < 0) return 'telat'

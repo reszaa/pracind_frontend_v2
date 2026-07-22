@@ -25,90 +25,90 @@ import * as mock from '@/mock/tagihanData'
 const MODE_MOCK = true
 
 export const JENIS = {
-  PEMBELIAN: 'PEMBELIAN',
-  PENJUALAN: 'PENJUALAN',
-  PEMBAYARAN: 'PEMBAYARAN',
+    PEMBELIAN: 'PEMBELIAN',
+    PENJUALAN: 'PENJUALAN',
+    PEMBAYARAN: 'PEMBAYARAN',
 }
 
 export function useTransaksi() {
-  const daftarPO = ref([])
-  const daftarSO = ref([])
-  const isLoading = ref(false)
-  const error = ref(null)
+    const daftarPO = ref([])
+    const daftarSO = ref([])
+    const isLoading = ref(false)
+    const error = ref(null)
 
-  const muat = async () => {
-    isLoading.value = true
-    error.value = null
-    try {
-      if (MODE_MOCK) {
-        await new Promise(r => setTimeout(r, 300))
-        daftarPO.value = mock.daftarPO
-        daftarSO.value = mock.daftarSO
-      } else {
-        // const [po, so] = await Promise.all([
-        //   api.get('purchase-order/'),
-        //   api.get('sales-order/'),
-        // ])
-        // daftarPO.value = po.data.results || po.data
-        // daftarSO.value = so.data.results || so.data
-      }
-    } catch (err) {
-      error.value = 'Gagal memuat riwayat transaksi.'
-      // error.value = bacaError(err, 'Gagal memuat riwayat transaksi.')
-    } finally {
-      isLoading.value = false
+    const muat = async () => {
+        isLoading.value = true
+        error.value = null
+        try {
+            if (MODE_MOCK) {
+                await new Promise(r => setTimeout(r, 300))
+                daftarPO.value = mock.daftarPO
+                daftarSO.value = mock.daftarSO
+            } else {
+                // const [po, so] = await Promise.all([
+                //   api.get('purchase-order/'),
+                //   api.get('sales-order/'),
+                // ])
+                // daftarPO.value = po.data.results || po.data
+                // daftarSO.value = so.data.results || so.data
+            }
+        } catch (err) {
+            error.value = 'Gagal memuat riwayat transaksi.'
+            // error.value = bacaError(err, 'Gagal memuat riwayat transaksi.')
+        } finally {
+            isLoading.value = false
+        }
     }
-  }
 
-  const hariIniISO = () => {
-    const t = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
-    return t.toISOString().slice(0, 10)
-  }
+    const hariIniISO = () => {
+        const t = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
+        return t.toISOString().slice(0, 10)
+    }
 
-  /** Semua transaksi dari dua sumber, digabung dan diurut terbaru dulu. */
-  const riwayat = computed(() => {
-    const beli = daftarPO.value.map(po => ({
-      id: `po-${po.id}`,
-      jenis: JENIS.PEMBELIAN,
-      nomor: po.nomor,
-      tanggal: po.tanggal,
-      pihak: po.suplier_detail?.nama ?? '—',
-      nilai: Number(po.total_po ?? 0),
-      status: po.status_pembayaran,
-      lengkap: po.kelengkapan?.is_complete ?? null,
-    }))
+    /** Semua transaksi dari dua sumber, digabung dan diurut terbaru dulu. */
+    const riwayat = computed(() => {
+        const beli = daftarPO.value.map(po => ({
+            id: `po-${po.id}`,
+            jenis: JENIS.PEMBELIAN,
+            nomor: po.nomor,
+            tanggal: po.tanggal,
+            pihak: po.suplier_detail?.nama ?? '—',
+            nilai: Number(po.total_po ?? 0),
+            status: po.status_pembayaran,
+            lengkap: po.kelengkapan?.is_complete ?? null,
+        }))
 
-    const jual = daftarSO.value.map(so => ({
-      id: `so-${so.id}`,
-      jenis: JENIS.PENJUALAN,
-      nomor: so.nomor,
-      tanggal: so.tanggal,
-      pihak: so.customer_detail?.nama ?? '—',
-      nilai: Number(so.total_so ?? 0),
-      status: so.status_pembayaran,
-      lengkap: null,
-    }))
+        const jual = daftarSO.value.map(so => ({
+            id: `so-${so.id}`,
+            jenis: JENIS.PENJUALAN,
+            nomor: so.nomor,
+            tanggal: so.tanggal,
+            pihak: so.customer_detail?.nama ?? '—',
+            nilai: Number(so.total_so ?? 0),
+            status: so.status_pembayaran,
+            lengkap: null,
+        }))
 
-    return [...beli, ...jual].sort(
-      (a, b) => new Date(b.tanggal) - new Date(a.tanggal),
+        return [...beli, ...jual].sort(
+            (a, b) => new Date(b.tanggal) - new Date(a.tanggal),
+        )
+    })
+
+    const transaksiHariIni = computed(() =>
+        riwayat.value.filter(x => x.tanggal === hariIniISO()),
     )
-  })
 
-  const transaksiHariIni = computed(() =>
-    riwayat.value.filter(x => x.tanggal === hariIniISO()),
-  )
+    const nilaiHariIni = computed(() =>
+        transaksiHariIni.value.reduce((s, x) => s + x.nilai, 0),
+    )
 
-  const nilaiHariIni = computed(() =>
-    transaksiHariIni.value.reduce((s, x) => s + x.nilai, 0),
-  )
+    const dokumenKurang = computed(() =>
+        daftarPO.value.filter(po => po.kelengkapan && !po.kelengkapan.is_complete),
+    )
 
-  const dokumenKurang = computed(() =>
-    daftarPO.value.filter(po => po.kelengkapan && !po.kelengkapan.is_complete),
-  )
-
-  return {
-    isLoading, error,
-    riwayat, transaksiHariIni, nilaiHariIni, dokumenKurang,
-    muat, hariIniISO,
-  }
+    return {
+        isLoading, error,
+        riwayat, transaksiHariIni, nilaiHariIni, dokumenKurang,
+        muat, hariIniISO,
+    }
 }

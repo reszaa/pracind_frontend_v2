@@ -24,31 +24,19 @@ export const MODUL = [
   {
     id: 'accounting',
     nama: 'Akunting',
-    ringkas: 'Buku tagihan, pembayaran, input transaksi',
+    ringkas: 'Purchase order, tagihan, pembayaran',
     ikon: 'buku',
     rute: '/accounting',
-    roles: [ROLE.STAFF],
+    // GUDANG ikut karena penerimaan barang dilakukan lewat PODetail —
+    // satu layar, dua peran, tombol berbeda.
+    roles: [ROLE.STAFF, ROLE.GUDANG],
     siap: true,
     menu: [
       { label: 'Ringkasan', rute: '/accounting' },
       { label: 'Buku tagihan', rute: '/accounting/tagihan' },
       { label: 'Input transaksi', rute: '/accounting/transaksi' },
       { label: 'Pembayaran supplier', rute: '/accounting/pembayaran' },
-    ],
-  },
-  {
-    id: 'procurement',
-    nama: 'Pembelian',
-    ringkas: 'Buat PO, terima barang, riwayat',
-    ikon: 'transaksi',
-    rute: '/procurement',
-    roles: [ROLE.STAFF, ROLE.GUDANG],
-    siap: false,
-    catatan: 'Layar belum dibuat',
-    menu: [
-      { label: 'Buat PO', rute: '/procurement/buat' },
-      { label: 'Daftar PO', rute: '/procurement' },
-      { label: 'Penerimaan barang', rute: '/procurement/penerimaan' },
+      { label: 'Purchase order', rute: '/accounting/po' },
     ],
   },
   {

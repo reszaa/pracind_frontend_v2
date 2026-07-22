@@ -1,14 +1,14 @@
 /**
- * features/tagihan/composables/useTagihan.js
- * ===========================================
- * Buku tagihan dirakit di CLIENT dari daftar PO dan SO — backend belum
- * punya endpoint agregat. Cukup untuk sekarang; kalau dokumennya sudah
- * ribuan, ini perlu dipindah jadi endpoint laporan di backend.
+ * src/features/accounting/useTagihan.js
+ * ======================================
+ * Buku tagihan dirakit di CLIENT dari daftar PO dan SO — backend belum punya
+ * endpoint agregat. Cukup untuk sekarang; kalau dokumennya sudah ribuan, ini
+ * perlu dipindah jadi endpoint laporan di backend.
  *
  * ⚠ SISI PIUTANG BELUM ADA DI BACKEND.
  * SalesOrder tidak punya `status_pembayaran` maupun riwayat pembayaran —
  * docstring modelnya eksplisit menunda ke fase Finance. Yang dibutuhkan,
- * dan polanya sudah ada persis di purchase_order:
+ * polanya cermin purchase_order:
  *
  *     SalesOrder + status_pembayaran (UNPAID/PARTIAL/PAID)
  *     RiwayatPembayaranSO    <- cermin RiwayatPembayaranPO
@@ -24,21 +24,23 @@ import * as mock from '@/mock/tagihanData'
 
 const MODE_MOCK = true
 
-/** Sisa tagihan: total dikurangi pembayaran yang MASIH AKTIF. */
+/**
+ * Sisa tagihan: total dikurangi pembayaran yang MASIH AKTIF.
+ * Pembayaran yang dibatalkan TIDAK dihitung — bug ini pernah ada di
+ * paymentHelper lama dan membuat dokumen terlihat lunas padahal belum.
+ */
 const sisa = (dok) => {
   const total = Number(dok.total_po ?? dok.total_so ?? 0)
   const dibayar = (dok.riwayat_pembayaran || [])
-    .filter(r => !r.dibatalkan_pada)   // yang dibatalkan TIDAK dihitung
+    .filter(r => !r.dibatalkan_pada)
     .reduce((s, r) => s + Number(r.nominal_dibayar || 0), 0)
   return total - dibayar
 }
 
 const selisihHari = (tanggal) => {
   if (!tanggal) return null
-  const t = new Date(tanggal)
-  t.setHours(0, 0, 0, 0)
-  const kini = new Date()
-  kini.setHours(0, 0, 0, 0)
+  const t = new Date(tanggal); t.setHours(0, 0, 0, 0)
+  const kini = new Date(); kini.setHours(0, 0, 0, 0)
   return Math.round((t - kini) / 86_400_000)
 }
 
@@ -123,7 +125,8 @@ export function useTagihan() {
     [...hutang.value, ...piutang.value].filter(x => x.hari !== null && x.hari < 0),
   )
   const tempoPekanIni = computed(() =>
-    [...hutang.value, ...piutang.value].filter(x => x.hari !== null && x.hari >= 0 && x.hari <= 7),
+    [...hutang.value, ...piutang.value]
+      .filter(x => x.hari !== null && x.hari >= 0 && x.hari <= 7),
   )
 
   return {

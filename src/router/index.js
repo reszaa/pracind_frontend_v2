@@ -38,7 +38,7 @@ const routes = [
   {
     path: '/accounting',
     component: ModulLayout,
-    meta: { perluLogin: true, modul: 'accounting', roles: ['STAFF'] },
+    meta: { perluLogin: true, modul: 'accounting' },
     children: [
       {
         path: '',
@@ -58,7 +58,28 @@ const routes = [
       {
         path: 'pembayaran',
         name: 'accounting-pembayaran',
-        component: () => import('@/features/accounting/views/PembayaranSupplier.vue'),
+        component: () => import('@/features/accounting/views/PembayaranSuplier.vue'),
+      },
+      // ── purchase order ──
+      // Ada di bawah /accounting, BUKAN modul sendiri: akunting yang membuat
+      // PO, dan "procurement" cuma nama lain untuk pekerjaan yang sama. Yang
+      // berbeda peran cuma penerimaan barang (gudang) — itu tombol di dalam
+      // PODetail, bukan modul terpisah.
+      {
+        path: 'po',
+        name: 'accounting-po',
+        component: () => import('@/features/accounting/views/PurchaseOrder.vue'),
+      },
+      {
+        path: 'po/buat',
+        name: 'accounting-po-buat',
+        component: () => import('@/features/accounting/views/BuatPO.vue'),
+      },
+      {
+        path: 'po/:id',
+        name: 'accounting-po-detail',
+        component: () => import('@/features/accounting/views/PODetail.vue'),
+        props: true,
       },
     ],
   },

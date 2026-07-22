@@ -119,7 +119,7 @@ const jenisTransaksi = [
         ringkas: 'Buat PO baru ke supplier',
         ikon: 'transaksi',
         nada: 'merah',
-        rute: '/procurement/buat',
+        rute: '/accounting/po/buat',
         siap: true,
     },
     {

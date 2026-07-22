@@ -26,140 +26,140 @@ const MODE_MOCK = true
 
 /** Total dikurangi pembayaran yang MASIH AKTIF (yang dibatalkan tidak dihitung). */
 export const sisaTagihan = (po) => {
-  const total = Number(po.total_po ?? 0)
-  const dibayar = (po.riwayat_pembayaran || [])
-    .filter(r => !r.dibatalkan_pada)
-    .reduce((s, r) => s + Number(r.nominal_dibayar || 0), 0)
-  return total - dibayar
+    const total = Number(po.total_po ?? 0)
+    const dibayar = (po.riwayat_pembayaran || [])
+        .filter(r => !r.dibatalkan_pada)
+        .reduce((s, r) => s + Number(r.nominal_dibayar || 0), 0)
+    return total - dibayar
 }
 
 const selisihHari = (tanggal) => {
-  if (!tanggal) return null
-  const t = new Date(tanggal); t.setHours(0, 0, 0, 0)
-  const kini = new Date(); kini.setHours(0, 0, 0, 0)
-  return Math.round((t - kini) / 86_400_000)
+    if (!tanggal) return null
+    const t = new Date(tanggal); t.setHours(0, 0, 0, 0)
+    const kini = new Date(); kini.setHours(0, 0, 0, 0)
+    return Math.round((t - kini) / 86_400_000)
 }
 
 export function usePembayaran() {
-  const daftarPO = ref([])
-  const isLoading = ref(false)
-  const sedangSimpan = ref(false)
-  const error = ref(null)
-  const cari = ref('')
-  const pilihan = ref(null)   // PO yang sedang dibayar
+    const daftarPO = ref([])
+    const isLoading = ref(false)
+    const sedangSimpan = ref(false)
+    const error = ref(null)
+    const cari = ref('')
+    const pilihan = ref(null)   // PO yang sedang dibayar
 
-  const muat = async () => {
-    isLoading.value = true
-    error.value = null
-    try {
-      if (MODE_MOCK) {
-        await new Promise(r => setTimeout(r, 350))
-        daftarPO.value = mock.daftarPO
-      } else {
-        // const { data } = await api.get('purchase-order/')
-        // daftarPO.value = data.results || data
-      }
-    } catch (err) {
-      error.value = 'Gagal memuat data purchase order.'
-      // error.value = bacaError(err, 'Gagal memuat data purchase order.')
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /** PO yang masih punya sisa — terurut jatuh tempo terdekat. */
-  const belumLunas = computed(() => {
-    const q = cari.value.trim().toLowerCase()
-    return daftarPO.value
-      .filter(po => po.status_pembayaran !== 'PAID' && !po.dibatalkan_pada)
-      .filter(po => !q
-        || po.nomor.toLowerCase().includes(q)
-        || (po.suplier_detail?.nama ?? '').toLowerCase().includes(q))
-      .map(po => ({
-        ...po,
-        sisa: sisaTagihan(po),
-        hari: selisihHari(po.tanggal_jatuh_tempo),
-        pembayaranAktif: (po.riwayat_pembayaran || []).filter(r => !r.dibatalkan_pada),
-      }))
-      .sort((a, b) => {
-        if (a.hari === null) return 1
-        if (b.hari === null) return -1
-        return a.hari - b.hari
-      })
-  })
-
-  const totalSisa = computed(() =>
-    belumLunas.value.reduce((s, po) => s + po.sisa, 0),
-  )
-  const lewatTempo = computed(() =>
-    belumLunas.value.filter(po => po.hari !== null && po.hari < 0),
-  )
-
-  const pilih = (po) => { pilihan.value = po; error.value = null }
-  const batalPilih = () => { pilihan.value = null; error.value = null }
-
-  /**
-   * @param {number} nominal
-   * @param {string} catatan
-   * @param {File|null} bukti
-   */
-  const catatPembayaran = async ({ nominal, catatan = '', bukti = null }) => {
-    const po = pilihan.value
-    if (!po) return { success: false, message: 'Belum ada PO yang dipilih.' }
-
-    const angka = Number(nominal)
-    if (!angka || angka <= 0) {
-      return { success: false, message: 'Nominal harus lebih dari 0.' }
-    }
-    // Umpan balik cepat — backend tetap yang menegakkan.
-    if (angka > po.sisa) {
-      return {
-        success: false,
-        message: `Kelebihan bayar: sisa tagihan ${po.sisa.toLocaleString('id-ID')}, `
-          + `nominal ${angka.toLocaleString('id-ID')}.`,
-      }
+    const muat = async () => {
+        isLoading.value = true
+        error.value = null
+        try {
+            if (MODE_MOCK) {
+                await new Promise(r => setTimeout(r, 350))
+                daftarPO.value = mock.daftarPO
+            } else {
+                // const { data } = await api.get('purchase-order/')
+                // daftarPO.value = data.results || data
+            }
+        } catch (err) {
+            error.value = 'Gagal memuat data purchase order.'
+            // error.value = bacaError(err, 'Gagal memuat data purchase order.')
+        } finally {
+            isLoading.value = false
+        }
     }
 
-    sedangSimpan.value = true
-    try {
-      if (MODE_MOCK) {
-        await new Promise(r => setTimeout(r, 500))
-        const target = daftarPO.value.find(x => x.id === po.id)
-        target.riwayat_pembayaran = [
-          ...(target.riwayat_pembayaran || []),
-          {
-            id: Date.now(),
-            nominal_dibayar: String(angka.toFixed(2)),
-            tanggal_bayar: new Date().toISOString().slice(0, 10),
-            catatan,
-            dibatalkan_pada: null,
-          },
-        ]
-        const sisaBaru = sisaTagihan(target)
-        target.status_pembayaran = sisaBaru <= 0 ? 'PAID' : 'PARTIAL'
-        pilihan.value = null
-        return { success: true }
-      }
+    /** PO yang masih punya sisa — terurut jatuh tempo terdekat. */
+    const belumLunas = computed(() => {
+        const q = cari.value.trim().toLowerCase()
+        return daftarPO.value
+            .filter(po => po.status_pembayaran !== 'PAID' && !po.dibatalkan_pada)
+            .filter(po => !q
+                || po.nomor.toLowerCase().includes(q)
+                || (po.suplier_detail?.nama ?? '').toLowerCase().includes(q))
+            .map(po => ({
+                ...po,
+                sisa: sisaTagihan(po),
+                hari: selisihHari(po.tanggal_jatuh_tempo),
+                pembayaranAktif: (po.riwayat_pembayaran || []).filter(r => !r.dibatalkan_pada),
+            }))
+            .sort((a, b) => {
+                if (a.hari === null) return 1
+                if (b.hari === null) return -1
+                return a.hari - b.hari
+            })
+    })
 
-      // const fd = new FormData()
-      // fd.append('nominal_dibayar', angka)
-      // if (catatan) fd.append('catatan', catatan)
-      // if (bukti) fd.append('bukti_transfer', bukti)
-      // await api.post(`purchase-order/${po.id}/catat-pembayaran/`, fd)
-      // await muat()
-      // pilihan.value = null
-      // return { success: true }
-    } catch (err) {
-      return { success: false, message: 'Gagal mencatat pembayaran.' }
-      // return { success: false, message: bacaError(err, 'Gagal mencatat pembayaran.') }
-    } finally {
-      sedangSimpan.value = false
+    const totalSisa = computed(() =>
+        belumLunas.value.reduce((s, po) => s + po.sisa, 0),
+    )
+    const lewatTempo = computed(() =>
+        belumLunas.value.filter(po => po.hari !== null && po.hari < 0),
+    )
+
+    const pilih = (po) => { pilihan.value = po; error.value = null }
+    const batalPilih = () => { pilihan.value = null; error.value = null }
+
+    /**
+     * @param {number} nominal
+     * @param {string} catatan
+     * @param {File|null} bukti
+     */
+    const catatPembayaran = async ({ nominal, catatan = '', bukti = null }) => {
+        const po = pilihan.value
+        if (!po) return { success: false, message: 'Belum ada PO yang dipilih.' }
+
+        const angka = Number(nominal)
+        if (!angka || angka <= 0) {
+            return { success: false, message: 'Nominal harus lebih dari 0.' }
+        }
+        // Umpan balik cepat — backend tetap yang menegakkan.
+        if (angka > po.sisa) {
+            return {
+                success: false,
+                message: `Kelebihan bayar: sisa tagihan ${po.sisa.toLocaleString('id-ID')}, `
+                    + `nominal ${angka.toLocaleString('id-ID')}.`,
+            }
+        }
+
+        sedangSimpan.value = true
+        try {
+            if (MODE_MOCK) {
+                await new Promise(r => setTimeout(r, 500))
+                const target = daftarPO.value.find(x => x.id === po.id)
+                target.riwayat_pembayaran = [
+                    ...(target.riwayat_pembayaran || []),
+                    {
+                        id: Date.now(),
+                        nominal_dibayar: String(angka.toFixed(2)),
+                        tanggal_bayar: new Date().toISOString().slice(0, 10),
+                        catatan,
+                        dibatalkan_pada: null,
+                    },
+                ]
+                const sisaBaru = sisaTagihan(target)
+                target.status_pembayaran = sisaBaru <= 0 ? 'PAID' : 'PARTIAL'
+                pilihan.value = null
+                return { success: true }
+            }
+
+            // const fd = new FormData()
+            // fd.append('nominal_dibayar', angka)
+            // if (catatan) fd.append('catatan', catatan)
+            // if (bukti) fd.append('bukti_transfer', bukti)
+            // await api.post(`purchase-order/${po.id}/catat-pembayaran/`, fd)
+            // await muat()
+            // pilihan.value = null
+            // return { success: true }
+        } catch (err) {
+            return { success: false, message: 'Gagal mencatat pembayaran.' }
+            // return { success: false, message: bacaError(err, 'Gagal mencatat pembayaran.') }
+        } finally {
+            sedangSimpan.value = false
+        }
     }
-  }
 
-  return {
-    daftarPO, belumLunas, isLoading, sedangSimpan, error, cari, pilihan,
-    totalSisa, lewatTempo,
-    muat, pilih, batalPilih, catatPembayaran,
-  }
+    return {
+        daftarPO, belumLunas, isLoading, sedangSimpan, error, cari, pilihan,
+        totalSisa, lewatTempo,
+        muat, pilih, batalPilih, catatPembayaran,
+    }
 }
