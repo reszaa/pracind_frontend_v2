@@ -11,18 +11,16 @@
  *   PEMBELIAN  -> POST purchase-order/         (header + daftar_item)
  *   PENJUALAN  -> POST sales-order/            ⚠ SERVICE BELUM ADA di backend
  *   PEMBAYARAN -> POST purchase-order/{id}/catat-pembayaran/
- *                 (sudah ditangani PembayaranSupplier.vue)
+ *                 (sudah ditangani PembayaranSuplier.vue)
  *
  * Kalau maksudnya satu form tunggal untuk semua jenis, struktur ini perlu
  * dirombak — bilang sebelum lanjut.
  */
 
 import { ref, computed } from 'vue'
-// import api from '@/utils/api'
-// import { bacaError } from '@/utils/error'
-import * as mock from '@/mock/tagihanData'
+import api from '@/utils/api'
+import { bacaError } from '@/utils/error'
 
-const MODE_MOCK = true
 
 export const JENIS = {
     PEMBELIAN: 'PEMBELIAN',
@@ -40,21 +38,8 @@ export function useTransaksi() {
         isLoading.value = true
         error.value = null
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 300))
-                daftarPO.value = mock.daftarPO
-                daftarSO.value = mock.daftarSO
-            } else {
-                // const [po, so] = await Promise.all([
-                //   api.get('purchase-order/'),
-                //   api.get('sales-order/'),
-                // ])
-                // daftarPO.value = po.data.results || po.data
-                // daftarSO.value = so.data.results || so.data
-            }
         } catch (err) {
-            error.value = 'Gagal memuat riwayat transaksi.'
-            // error.value = bacaError(err, 'Gagal memuat riwayat transaksi.')
+            error.value = bacaError(err, 'Gagal memuat riwayat transaksi.')
         } finally {
             isLoading.value = false
         }

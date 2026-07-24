@@ -21,17 +21,13 @@
  *
  * ATURAN APPROVE: cukup SATU staf yang ditag menyetujui, WO langsung hilang
  * dari mading semua orang. Backend menolak kalau bukan yang ditag.
- *
- * FASE UI: MODE_MOCK = true pakai data palsu. Set false saat backend siap —
- * tidak ada perubahan lain yang diperlukan.
+
  */
 
 import { ref, computed } from 'vue'
-// import api from '@/utils/api'
-// import { bacaError } from '@/utils/error'
-import * as mock from '@/mock/workOrderData'
+import api from '@/utils/api'
+import { bacaError } from '@/utils/error'
 
-const MODE_MOCK = true
 
 export function useWorkOrder(accessCard) {
     const mading = ref([])          // WO yang ditag ke saya, belum di-approve
@@ -59,16 +55,8 @@ export function useWorkOrder(accessCard) {
         isLoading.value = true
         error.value = null
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 300))
-                mading.value = mock.mading
-            } else {
-                // const { data } = await api.get('work-order/mading/')
-                // mading.value = data.results || data
-            }
         } catch (err) {
-            error.value = 'Gagal memuat papan tugas.'
-            // error.value = bacaError(err, 'Gagal memuat papan tugas.')
+            error.value = bacaError(err, 'Gagal memuat papan tugas.')
         } finally {
             isLoading.value = false
         }
@@ -77,16 +65,6 @@ export function useWorkOrder(accessCard) {
     const fetchSemua = async ({ selesai = null, tanggal = null } = {}) => {
         isLoading.value = true
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 300))
-                semuaWO.value = mock.semuaWO
-            } else {
-                // const params = {}
-                // if (selesai !== null) params.selesai = selesai
-                // if (tanggal) params.tanggal = tanggal
-                // const { data } = await api.get('work-order/', { params })
-                // semuaWO.value = data.results || data
-            }
         } catch (err) {
             error.value = 'Gagal memuat daftar tugas.'
         } finally {
@@ -102,12 +80,6 @@ export function useWorkOrder(accessCard) {
      */
     const fetchStaffList = async () => {
         try {
-            if (MODE_MOCK) {
-                staffList.value = mock.staffList
-            } else {
-                // const { data } = await api.get('staff_user/profil/')
-                // staffList.value = data.results || data
-            }
         } catch (err) {
             error.value = 'Gagal memuat daftar staf. Butuh akses Supervisor.'
         }
@@ -126,33 +98,13 @@ export function useWorkOrder(accessCard) {
         }
         isLoading.value = true
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 400))
-                const baru = {
-                    id: Date.now(), nomor: `WO-202607-${String(mading.value.length + 5).padStart(3, '0')}`,
-                    judul, deskripsi, tanggal, deadline,
-                    dibuat_oleh_username: username.value, selesai: false, terlambat: false,
-                    penugasan: staffIds.map((sid, i) => {
-                        const s = staffList.value.find(x => x.id === sid)
-                        return {
-                            id: Date.now() + i, staff: sid,
-                            staff_nama: s?.nama_lengkap ?? `Staf #${sid}`,
-                            staff_username: s?.username ?? '',
-                            disetujui_pada: null, catatan_approve: '',
-                        }
-                    }),
-                }
-                mading.value = [baru, ...mading.value]
-                return { success: true, wo: baru }
-            }
-            // const { data } = await api.post('work-order/', {
-            //   judul, deskripsi, tanggal, deadline, staff_ids: staffIds,
-            // })
-            // await fetchMading()
-            // return { success: true, wo: data }
+            const { data } = await api.post('work-order/', {
+              judul, deskripsi, tanggal, deadline, staff_ids: staffIds,
+            })
+            await fetchMading()
+            return { success: true, wo: data }
         } catch (err) {
-            return { success: false, message: 'Gagal membuat tugas.' }
-            // return { success: false, message: bacaError(err, 'Gagal membuat tugas.') }
+            return { success: false, message: bacaError(err, 'Gagal membuat tugas.') }
         } finally {
             isLoading.value = false
         }
@@ -162,17 +114,11 @@ export function useWorkOrder(accessCard) {
     const approveWO = async (wo, catatan = '') => {
         sedangApprove.value = wo.id
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 400))
-                mading.value = mading.value.filter(x => x.id !== wo.id)
-                return { success: true }
-            }
-            // await api.post(`work-order/${wo.id}/approve/`, { catatan })
-            // await fetchMading()
-            // return { success: true }
+            await api.post(`work-order/${wo.id}/approve/`, { catatan })
+            await fetchMading()
+            return { success: true }
         } catch (err) {
-            return { success: false, message: 'Gagal menyetujui tugas.' }
-            // return { success: false, message: bacaError(err, 'Gagal menyetujui tugas.') }
+            return { success: false, message: bacaError(err, 'Gagal menyetujui tugas.') }
         } finally {
             sedangApprove.value = null
         }

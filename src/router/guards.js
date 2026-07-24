@@ -24,7 +24,6 @@ export const pasangGuards = (router) => {
     const { sudahLogin, role, isSupervisor } = useAuth()
 
     if (to.meta?.publik) {
-      // Sudah login tapi membuka /login -> lempar ke dashboard.
       if (to.path === '/login' && sudahLogin.value) return { path: '/' }
       return true
     }
@@ -33,7 +32,6 @@ export const pasangGuards = (router) => {
       return { path: '/login', query: { lanjut: to.fullPath } }
     }
 
-    // Supervisor selalu lolos — cermin has_role() di backend.
     const roles = to.meta?.roles
     if (roles?.length && !isSupervisor.value && !roles.includes(role.value)) {
       return { path: '/', query: { ditolak: to.path } }

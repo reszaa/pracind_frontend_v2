@@ -115,11 +115,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useWorkOrder } from '@/features/work-order/composables/useWorkOrder'
-import { accessCard } from '@/mock/workOrderData'
+import { useAuth } from '@/composables/useAuth'
 
-const kartu = computed(() => accessCard)
+// Identitas dari sesi login (useAuth), BUKAN dari mock — supaya papan tugas
+// dan dashboard menilai "tugas saya" dengan kartu yang sama.
+const { accessCard: kartu } = useAuth()
 const {
   mading, staffList, isLoading, sedangApprove, staffId,
   bisaApprove, terlambat,

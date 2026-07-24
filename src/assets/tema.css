@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /**
  * assets/tema.css
  * ================
@@ -40,14 +42,17 @@
   --bayang-angkat: 0 6px 20px rgba(0, 0, 0, .06);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
   background: var(--latar);
   color: var(--teks);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-variant-numeric: tabular-nums;   /* angka sejajar di kolom */
+  font-variant-numeric: tabular-nums;
+  /* angka sejajar di kolom */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -68,7 +73,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: .01ms !important;
     transition-duration: .01ms !important;
   }

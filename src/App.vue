@@ -1,11 +1,13 @@
 <template>
-  <router-view />
+    <router-view />
 </template>
 
 <script setup>
-// Root component untuk sistem Pracindo Internal
-</script>
+import { onMounted } from 'vue'
+import { useAuth } from '@/composables/useAuth'
 
-<style>
-/* Styling global root jika diperlukan */
-</style>
+// Rehydrate access card sekali per muat aplikasi — token divalidasi ke
+// staff_user/me/ dan perubahan role oleh Supervisor langsung terasa.
+const { muatUlangKartu } = useAuth()
+onMounted(muatUlangKartu)
+</script>

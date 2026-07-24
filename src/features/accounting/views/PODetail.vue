@@ -32,7 +32,8 @@
             <div v-if="po" class="aksi-kepala">
                 <button v-if="bolehTerima && po.status_penerimaan !== 'PENUH'" class="tbl tbl--utama"
                     @click="bukaTerima = !bukaTerima">{{ bukaTerima ? 'Tutup' : 'Terima barang' }}</button>
-                <router-link v-if="po.status_pembayaran !== 'PAID'" to="/accounting/pembayaran" class="tbl">Catat
+                <router-link v-if="po.status_pembayaran !== 'PAID'" to="/accounting/transaksi/pembayaran"
+                    class="tbl">Catat
                     pembayaran</router-link>
             </div>
         </header>

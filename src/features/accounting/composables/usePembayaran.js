@@ -18,11 +18,9 @@
  */
 
 import { ref, computed } from 'vue'
-// import api from '@/utils/api'
-// import { bacaError } from '@/utils/error'
-import * as mock from '@/mock/tagihanData'
+import api from '@/utils/api'
+import { bacaError } from '@/utils/error'
 
-const MODE_MOCK = true
 
 /** Total dikurangi pembayaran yang MASIH AKTIF (yang dibatalkan tidak dihitung). */
 export const sisaTagihan = (po) => {
@@ -52,16 +50,8 @@ export function usePembayaran() {
         isLoading.value = true
         error.value = null
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 350))
-                daftarPO.value = mock.daftarPO
-            } else {
-                // const { data } = await api.get('purchase-order/')
-                // daftarPO.value = data.results || data
-            }
         } catch (err) {
-            error.value = 'Gagal memuat data purchase order.'
-            // error.value = bacaError(err, 'Gagal memuat data purchase order.')
+            error.value = bacaError(err, 'Gagal memuat data purchase order.')
         } finally {
             isLoading.value = false
         }
@@ -122,36 +112,17 @@ export function usePembayaran() {
 
         sedangSimpan.value = true
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 500))
-                const target = daftarPO.value.find(x => x.id === po.id)
-                target.riwayat_pembayaran = [
-                    ...(target.riwayat_pembayaran || []),
-                    {
-                        id: Date.now(),
-                        nominal_dibayar: String(angka.toFixed(2)),
-                        tanggal_bayar: new Date().toISOString().slice(0, 10),
-                        catatan,
-                        dibatalkan_pada: null,
-                    },
-                ]
-                const sisaBaru = sisaTagihan(target)
-                target.status_pembayaran = sisaBaru <= 0 ? 'PAID' : 'PARTIAL'
-                pilihan.value = null
-                return { success: true }
-            }
 
-            // const fd = new FormData()
-            // fd.append('nominal_dibayar', angka)
-            // if (catatan) fd.append('catatan', catatan)
-            // if (bukti) fd.append('bukti_transfer', bukti)
-            // await api.post(`purchase-order/${po.id}/catat-pembayaran/`, fd)
-            // await muat()
-            // pilihan.value = null
-            // return { success: true }
+            const fd = new FormData()
+            fd.append('nominal_dibayar', angka)
+            if (catatan) fd.append('catatan', catatan)
+            if (bukti) fd.append('bukti_transfer', bukti)
+            await api.post(`purchase-order/${po.id}/catat-pembayaran/`, fd)
+            await muat()
+            pilihan.value = null
+            return { success: true }
         } catch (err) {
-            return { success: false, message: 'Gagal mencatat pembayaran.' }
-            // return { success: false, message: bacaError(err, 'Gagal mencatat pembayaran.') }
+            return { success: false, message: bacaError(err, 'Gagal mencatat pembayaran.') }
         } finally {
             sedangSimpan.value = false
         }

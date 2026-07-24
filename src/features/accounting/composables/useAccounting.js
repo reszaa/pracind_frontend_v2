@@ -2,7 +2,7 @@
  * src/features/accounting/composables/useAccounting.js
  * =====================================================
  * Agregat untuk halaman depan modul akunting. Menarik dari sumber yang sama
- * dengan BukuTagihan dan PembayaranSupplier, lalu merangkumnya jadi daftar
+ * dengan BukuTagihan dan PembayaranSuplier, lalu merangkumnya jadi daftar
  * "perlu ditangani" yang terurut prioritas.
  *
  * Urutan prioritas SENGAJA: yang menghentikan uang keluar-masuk lebih dulu,
@@ -17,11 +17,9 @@
  */
 
 import { ref, computed } from 'vue'
-// import api from '@/utils/api'
-// import { bacaError } from '@/utils/error'
-import * as mock from '@/mock/tagihanData'
+import api from '@/utils/api'
+import { bacaError } from '@/utils/error'
 
-const MODE_MOCK = true
 
 const rp = (n) =>
     `Rp ${Number(n).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`
@@ -51,21 +49,8 @@ export function useAccounting() {
         isLoading.value = true
         error.value = null
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 350))
-                daftarPO.value = mock.daftarPO
-                daftarSO.value = mock.daftarSO
-            } else {
-                // const [po, so] = await Promise.all([
-                //   api.get('purchase-order/'),
-                //   api.get('sales-order/'),
-                // ])
-                // daftarPO.value = po.data.results || po.data
-                // daftarSO.value = so.data.results || so.data
-            }
         } catch (err) {
-            error.value = 'Gagal memuat data akunting.'
-            // error.value = bacaError(err, 'Gagal memuat data akunting.')
+            error.value = bacaError(err, 'Gagal memuat data akunting.')
         } finally {
             isLoading.value = false
         }
@@ -113,7 +98,7 @@ export function useAccounting() {
                     urutan: 1, jenis: 'hutang', tingkat: 'kritis',
                     judul: `${h.nomor} lewat tempo ${Math.abs(h.hari)} hari`,
                     detail: `${h.pihak} · sisa ${rp(h.sisa)}`,
-                    tautan: '/accounting/pembayaran',
+                    tautan: '/accounting/transaksi/pembayaran',
                 })
             }
         }
@@ -146,7 +131,9 @@ export function useAccounting() {
                 urutan: 4, jenis: 'dokumen', tingkat: 'biasa',
                 judul: `${po.nomor} dokumen belum lengkap`,
                 detail: `Menunggu ${kurang} — ${po.suplier_detail?.nama ?? '—'}`,
-                tautan: '/accounting/dokumen',
+                // Langsung ke PO-nya — panel kelengkapan ada di PODetail.
+                // (/accounting/dokumen tidak pernah terdaftar sebagai rute.)
+                tautan: `/accounting/po/${po.id}`,
             })
         }
 
@@ -164,4 +151,3 @@ export function useAccounting() {
         muat,
     }
 }
-

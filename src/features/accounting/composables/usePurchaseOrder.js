@@ -4,9 +4,17 @@
  * Kontrak backend:
  *
  *   GET  purchase-order/                      list (scoped ke Akun user)
+ *   GET  purchase-order/{id}/                 detail  ⚠ pastikan retrieve
+ *                                             memang ada di ViewSet (standar
+ *                                             ModelViewSet: otomatis)
  *   GET  purchase-order/preview-nomor/        ?akun={id}&tanggal=YYYY-MM-DD
  *   POST purchase-order/                      buat PO
  *   POST purchase-order/{id}/terima-barang/   {items:[{item_id,kuantitas,no_batch?}]}
+ *                                             ⚠ field `catatan` di payload
+ *                                             masih ASUMSI — cocokkan dengan
+ *                                             service terima_barang; kalau
+ *                                             tidak ada, backend akan
+ *                                             mengabaikannya tanpa error.
  *
  * ⚠ NOMOR PO DIBUAT BACKEND. preview-nomor hanya PERKIRAAN — angkanya bisa
  * bergeser kalau ada PO lain dibuat di antara preview dan submit. Nomor
@@ -20,19 +28,19 @@
  * tambah_item_po, hapus_item_po, koreksi_penerimaan, batalkan_pembayaran.
  * Endpoint-nya ada di views tapi fungsinya tidak ada -> AttributeError 500.
  * Karena itu composable ini TIDAK menyediakan fungsi edit PO.
+ *
  */
 
 import { ref, computed } from 'vue'
-// import api from '@/utils/api'
-// import { bacaError } from '@/utils/error'
-import * as mock from '@/mock/purchaseOrderData'
+import api from '@/utils/api'
+import { bacaError } from '@/utils/error'
 
-const MODE_MOCK = true
 
 export function usePurchaseOrder() {
     const daftarPO = ref([])
     const daftarSuplier = ref([])
     const daftarAkun = ref([])
+    const poAktif = ref(null)           // detail yang sedang dibuka (PODetail)
     const isLoading = ref(false)
     const sedangSimpan = ref(false)
     const error = ref(null)
@@ -43,26 +51,53 @@ export function usePurchaseOrder() {
         isLoading.value = true
         error.value = null
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 350))
-                daftarPO.value = mock.daftarPO
-                daftarSuplier.value = mock.daftarSuplier
-                daftarAkun.value = mock.daftarAkun
-            } else {
-                // const [po, sup, akun] = await Promise.all([
-                //   api.get('purchase-order/'),
-                //   api.get('suplier/', { params: { aktif: true } }),
-                //   api.get('entitas/akun/'),
-                // ])
-                // daftarPO.value = po.data.results || po.data
-                // daftarSuplier.value = sup.data.results || sup.data
-                // daftarAkun.value = akun.data.results || akun.data
-            }
         } catch (err) {
-            error.value = 'Gagal memuat data purchase order.'
-            // error.value = bacaError(err, 'Gagal memuat data purchase order.')
+            error.value = bacaError(err, 'Gagal memuat data purchase order.')
         } finally {
             isLoading.value = false
+        }
+    }
+
+    /**
+     * Detail satu PO untuk PODetail. Mengambil sendiri berdasarkan id —
+     * TIDAK bergantung daftarPO sudah dimuat, karena state composable ini
+     * per-instance dan PODetail tidak memanggil muat().
+     * @param {number|string} poId  route.params.id datang sebagai STRING.
+     */
+    const muatDetail = async (poId) => {
+        isLoading.value = true
+        error.value = null
+        try {
+        } catch (err) {
+            poAktif.value = null
+            error.value = bacaError(err, 'Gagal memuat detail PO.')
+        } finally {
+            isLoading.value = false
+        }
+    }
+
+    /**
+     * Penerimaan barang — boleh parsial, boleh berkali-kali.
+     * @param {number|string} poId
+     * @param {Array} items     [{item_id, kuantitas, no_batch?}]
+     * @param {string} catatan  ⚠ lihat catatan payload di header
+     */
+    const terimaBarang = async (poId, items, catatan = '') => {
+        if (!items?.length) {
+            return { success: false, message: 'Tidak ada kuantitas yang diisi.' }
+        }
+        sedangSimpan.value = true
+        try {
+
+            await api.post(`purchase-order/${poId}/terima-barang/`, {
+              items, catatan,
+            })
+            await muatDetail(poId)
+            return { success: true }
+        } catch (err) {
+            return { success: false, message: bacaError(err, 'Gagal mencatat penerimaan.') }
+        } finally {
+            sedangSimpan.value = false
         }
     }
 
@@ -73,17 +108,10 @@ export function usePurchaseOrder() {
     const previewNomor = async (akunId, tanggal) => {
         if (!akunId || !tanggal) return null
         try {
-            if (MODE_MOCK) {
-                const akun = daftarAkun.value.find(a => a.id === akunId)
-                const romawi = ['I', 'II', 'III', 'IV', 'V', 'VI',
-                    'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
-                const d = new Date(tanggal)
-                return `PO/${akun?.kode ?? '???'}/${d.getFullYear()}/${romawi[d.getMonth()]}/007`
-            }
-            // const { data } = await api.get('purchase-order/preview-nomor/', {
-            //   params: { akun: akunId, tanggal },
-            // })
-            // return data.nomor_preview
+            const { data } = await api.get('purchase-order/preview-nomor/', {
+              params: { akun: akunId, tanggal },
+            })
+            return data.nomor_preview
         } catch {
             return null
         }
@@ -102,41 +130,14 @@ export function usePurchaseOrder() {
         }
         sedangSimpan.value = true
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 600))
-                const akunObj = daftarAkun.value.find(a => a.id === akun)
-                const supObj = daftarSuplier.value.find(s => s.id === suplier)
-                const total = daftar_item.reduce(
-                    (s, i) => s + Number(i.quantity) * Number(i.harga_satuan || 0) * 1.11, 0,
-                )
-                const baru = {
-                    id: Date.now(),
-                    nomor: await previewNomor(akun, tanggal),
-                    tanggal, tanggal_jatuh_tempo, catatan,
-                    status_penerimaan: 'BELUM_DITERIMA',
-                    status_pembayaran: 'UNPAID',
-                    dibatalkan_pada: null,
-                    total_po: total.toFixed(2),
-                    akun_detail: akunObj,
-                    suplier_detail: supObj,
-                    daftar_item: daftar_item.map((i, n) => ({
-                        id: Date.now() + n, ...i,
-                        kuantitas_terkirim: '0.00', no_batch: '', tarif_ppn: '0.1100',
-                    })),
-                    riwayat_pembayaran: [],
-                }
-                daftarPO.value = [baru, ...daftarPO.value]
-                return { success: true, po: baru }
-            }
 
-            // const { data } = await api.post('purchase-order/', {
-            //   akun, suplier, tanggal, tanggal_jatuh_tempo, catatan, daftar_item,
-            // })
-            // await muat()
-            // return { success: true, po: data }   // data.nomor = nomor FINAL
+            const { data } = await api.post('purchase-order/', {
+              akun, suplier, tanggal, tanggal_jatuh_tempo, catatan, daftar_item,
+            })
+            await muat()
+            return { success: true, po: data }   // data.nomor = nomor FINAL
         } catch (err) {
-            return { success: false, message: 'Gagal menyimpan PO.' }
-            // return { success: false, message: bacaError(err, 'Gagal menyimpan PO.') }
+            return { success: false, message: bacaError(err, 'Gagal menyimpan PO.') }
         } finally {
             sedangSimpan.value = false
         }
@@ -173,9 +174,9 @@ export function usePurchaseOrder() {
     })
 
     return {
-        daftarPO, daftarSuplier, daftarAkun, tampil,
+        daftarPO, daftarSuplier, daftarAkun, poAktif, tampil,
         isLoading, sedangSimpan, error, cari, saringStatus,
         belumDiterima, totalBulanIni,
-        muat, previewNomor, buatPO,
+        muat, muatDetail, terimaBarang, previewNomor, buatPO,
     }
 }

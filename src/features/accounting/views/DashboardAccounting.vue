@@ -125,9 +125,9 @@ onMounted(muat)
 
 const pintasan = [
     { nama: 'Buku tagihan', ringkas: 'Hutang & piutang belum lunas', rute: '/accounting/tagihan' },
-    { nama: 'Catat pembayaran', ringkas: 'Bayar supplier, catat cicilan', rute: '/accounting/pembayaran' },
+    { nama: 'Catat pembayaran', ringkas: 'Bayar suplier, catat cicilan', rute: '/accounting/transaksi/pembayaran' },
     { nama: 'Input transaksi', ringkas: 'Pembelian, penjualan, pembayaran', rute: '/accounting/transaksi' },
-    { nama: 'Dokumen PO', ringkas: 'Invoice, faktur, surat jalan', rute: '/accounting/dokumen' },
+    { nama: 'Purchase order', ringkas: 'Daftar PO & kelengkapan dokumen', rute: '/accounting/po' },
 ]
 
 const rp = (n) =>

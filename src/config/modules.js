@@ -24,36 +24,71 @@ export const MODUL = [
   {
     id: 'accounting',
     nama: 'Akunting',
-    ringkas: 'Purchase order, tagihan, pembayaran',
+    ringkas: 'Purchase order, tagihan, dokumen',
     ikon: 'buku',
     rute: '/accounting',
     // GUDANG ikut karena penerimaan barang dilakukan lewat PODetail —
     // satu layar, dua peran, tombol berbeda.
     roles: [ROLE.STAFF, ROLE.GUDANG],
     siap: true,
+    // Tidak tampil sebagai kartu di dashboard: Akunting adalah ruang
+    // PENINJAUAN yang selalu dicapai dari konteks — tautan "Perlu ditangani",
+    // rel di ruang Transaksi, atau breadcrumb PODetail. Rute & menunya tetap
+    // hidup penuh; yang disembunyikan cuma kartunya.
+    sembunyiDiDashboard: true,
     menu: [
       { label: 'Ringkasan', rute: '/accounting' },
       { label: 'Buku tagihan', rute: '/accounting/tagihan' },
-      { label: 'Input transaksi', rute: '/accounting/transaksi' },
-      { label: 'Pembayaran supplier', rute: '/accounting/pembayaran' },
+      { label: 'Purchase order', rute: '/accounting/po' },
+    ],
+  },
+  {
+    // Ruang PENCATATAN, dipisah dari Akunting yang untuk PENINJAUAN.
+    // Satu jalan per tujuan: lihat data -> Akunting, catat transaksi -> sini.
+    // Layarnya punya rel ikon sendiri (features/accounting/layout/
+    // InputTransaksiLayout.vue) dan isinya diatur useNavTransaksi.
+    id: 'transaksi',
+    nama: 'Input Transaksi',
+    ringkas: 'Pembelian, penjualan, pembayaran',
+    ikon: 'buku',
+    rute: '/accounting/transaksi',
+    roles: [ROLE.STAFF, ROLE.GUDANG, ROLE.SALES],
+    siap: true,
+    menu: [
+      { label: 'Pembelian', rute: '/accounting/transaksi/pembelian' },
+      { label: 'Pembayaran', rute: '/accounting/transaksi/pembayaran' },
+    ],
+  },
+  {
+    // Bukan modul penuh — pintasan ke satu layar milik Akunting. Dibuat
+    // kartu tersendiri karena buku tagihan dibuka jauh lebih sering
+    // daripada halaman Akunting lainnya.
+    id: 'tagihan',
+    nama: 'Buku Tagihan',
+    ringkas: 'Hutang & piutang per jatuh tempo',
+    ikon: 'buku',
+    rute: '/accounting/tagihan',
+    roles: [ROLE.STAFF, ROLE.GUDANG],
+    siap: true,
+    menu: [
+      { label: 'Buku tagihan', rute: '/accounting/tagihan' },
       { label: 'Purchase order', rute: '/accounting/po' },
     ],
   },
   {
     id: 'warehouse',
     nama: 'Gudang',
-    ringkas: 'Stok bahan, penerimaan, opname',
+    ringkas: 'Stok bahan baku, opname, tangki',
     ikon: 'gudang',
     rute: '/warehouse',
     roles: [ROLE.GUDANG],
-    siap: false,
-    catatan: 'Layar belum dibuat',
+    // Menu HANYA layar yang benar-benar ada. Penerimaan barang tetap lewat
+    // PODetail (modul Akunting); bahan/mutasi menyusul saat layarnya dibuat.
+    siap: true,
     menu: [
       { label: 'Dashboard stok', rute: '/warehouse' },
-      { label: 'Stok bahan baku', rute: '/warehouse/bahan' },
-      { label: 'Penerimaan', rute: '/warehouse/penerimaan' },
       { label: 'Stok opname', rute: '/warehouse/opname' },
-      { label: 'Mutasi barang', rute: '/warehouse/mutasi' },
+      { label: 'Monitor tangki', rute: '/warehouse/tangki' },
     ],
   },
   {
@@ -63,8 +98,7 @@ export const MODUL = [
     ikon: 'produksi',
     rute: '/rnd',
     roles: [ROLE.PRODUKSI],
-    siap: false,
-    catatan: 'Layar belum dibuat',
+    siap: true,
     menu: [
       { label: 'Sesi produksi', rute: '/rnd' },
       { label: 'Formula produk', rute: '/rnd/formula' },
@@ -78,8 +112,7 @@ export const MODUL = [
     ikon: 'kirim',
     rute: '/logistic',
     roles: [ROLE.GUDANG, ROLE.SALES],
-    siap: false,
-    catatan: 'Layar belum dibuat',
+    siap: true,
     menu: [
       { label: 'Pantau kiriman', rute: '/logistic' },
       { label: 'Buat surat jalan', rute: '/logistic/buat' },
@@ -89,14 +122,19 @@ export const MODUL = [
   {
     id: 'master',
     nama: 'Master Data',
-    ringkas: 'Supplier, customer, produk, armada',
+    // Armada pindah ke modul Pengiriman — status sopir diturunkan dari
+    // surat jalan, jadi datanya milik logistik.
+    ringkas: 'Suplier, customer, produk',
     ikon: 'master',
     rute: '/master',
     roles: [ROLE.STAFF, ROLE.GUDANG, ROLE.PRODUKSI, ROLE.SALES],
-    siap: false,
-    catatan: 'Layar belum dibuat',
+    siap: true,
+    // Disembunyikan dari kartu dashboard — tetap bisa dibuka lewat URL
+    // /master atau rel modul. Kalau nanti perlu dimunculkan lagi, cabut
+    // satu baris ini.
+    sembunyiDiDashboard: true,
     menu: [
-      { label: 'Supplier', rute: '/master/supplier' },
+      { label: 'Suplier', rute: '/master/suplier' },
       { label: 'Customer', rute: '/master/customer' },
       { label: 'Produk', rute: '/master/produk' },
     ],
@@ -119,6 +157,10 @@ export const bolehAkses = (modul, role) =>
   role === ROLE.SUPERVISOR || modul.roles.includes(role)
 
 export const modulUntuk = (role) => MODUL.filter(m => bolehAkses(m, role))
+
+/** Kartu di dashboard — modul ber-`sembunyiDiDashboard` dikecualikan. */
+export const modulDashboard = (role) =>
+  modulUntuk(role).filter(m => !m.sembunyiDiDashboard)
 
 export const cariModul = (id) => MODUL.find(m => m.id === id) ?? null
 

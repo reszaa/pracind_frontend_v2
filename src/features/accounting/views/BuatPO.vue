@@ -8,8 +8,11 @@
   2. Nomor PO TIDAK dirakit di client. Backend yang membuatnya; preview di
      sini cuma perkiraan dan diberi label "sementara" karena angkanya bisa
      bergeser kalau ada PO lain dibuat bersamaan.
-  3. Quantity dihitung `unit_kg x total_unit` — sama dengan yang dipakai
-     backend untuk menghitung subtotal.
+  3. Quantity: item TIMBANGAN = unit_kg × total_unit; item HITUNGAN
+     (kemasan/pcs, unit_kg kosong atau 0) = total_unit saja. Ini cermin
+     data backend: PO kemasan 'Pail 25KG' tersimpan dengan unit_kg 0 dan
+     quantity == total_unit. Versi lama form ini menuntut unit_kg > 0,
+     sehingga PO kemasan MUSTAHIL di-submit.
 -->
 <template>
     <div>
@@ -61,15 +64,15 @@
 
                     <div class="baris2">
                         <label class="isian">
-                            <span class="isian__label">Supplier</span>
+                            <span class="isian__label">Suplier</span>
                             <select v-model.number="draf.suplier" required>
                                 <option :value="null" disabled>Pilih supplier</option>
                                 <option v-for="s in daftarSuplier" :key="s.id" :value="s.id">
                                     {{ s.nama }}{{ s.kota ? ` — ${s.kota}` : '' }}
                                 </option>
                             </select>
-                            <span v-if="terminSupplier !== null" class="isian__bantu">
-                                Termin {{ terminSupplier }} hari
+                            <span v-if="terminSuplier !== null" class="isian__bantu">
+                                Termin {{ terminSuplier }} hari
                             </span>
                         </label>
 
@@ -91,7 +94,7 @@
                 <div class="panel__kepala">
                     <div>
                         <h2 class="panel__judul">Rincian item</h2>
-                        <p class="panel__sub">Qty dihitung dari unit/kg × jumlah unit</p>
+                        <p class="panel__sub">Qty = unit/kg × jml unit — kosongkan unit/kg untuk barang hitungan (pcs)</p>
                     </div>
                     <button type="button" class="tbl" @click="tambahItem">
                         <BaseIcon nama="tambah" :ukuran="14" /> Tambah item
@@ -204,12 +207,18 @@ watch([() => draf.suplier, () => draf.tanggal], ([sup, tanggal]) => {
     draf.tanggal_jatuh_tempo = d.toISOString().slice(0, 10)
 })
 
-const terminSupplier = computed(() => {
+const terminSuplier = computed(() => {
     const s = daftarSuplier.value.find(x => x.id === draf.suplier)
     return s ? s.termin_pembayaran_hari : null
 })
 
-const qty = (item) => (Number(item.unit_kg) || 0) * (Number(item.total_unit) || 0)
+// Item timbangan: unit_kg × jml unit. Item hitungan (kemasan, pcs):
+// unit_kg 0/kosong -> qty = jml unit — cermin PO kemasan di backend.
+const qty = (item) => {
+    const kg = Number(item.unit_kg) || 0
+    const unit = Number(item.total_unit) || 0
+    return kg > 0 ? kg * unit : unit
+}
 const subtotal = (item) => qty(item) * (Number(item.harga_satuan) || 0)
 
 const subtotalSemua = computed(() =>
@@ -227,10 +236,11 @@ const kirim = async () => {
     pesan.value = ''
 
     const kosong = draf.daftar_item.some(
-        i => !i.nama_item?.trim() || !i.total_unit || qty(i) <= 0,
+        i => !i.nama_item?.trim() || !(Number(i.total_unit) > 0),
     )
     if (kosong) {
-        pesan.value = 'Setiap item butuh nama, jumlah unit, dan unit/kg yang menghasilkan qty di atas 0.'
+        pesan.value = 'Setiap item butuh nama dan jumlah unit minimal 1. '
+            + 'Unit/kg boleh dikosongkan untuk barang hitungan (pcs).'
         return
     }
 

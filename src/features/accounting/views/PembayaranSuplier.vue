@@ -1,5 +1,5 @@
 <!--
-  src/features/accounting/views/PembayaranSupplier.vue
+  src/features/accounting/views/PembayaranSuplier.vue
   =====================================================
   Dua kolom: kiri daftar PO yang masih punya sisa, kanan form pembayaran
   untuk PO yang dipilih.
@@ -17,7 +17,7 @@
             <div>
                 <p class="remah">
                     <router-link to="/">Dashboard</router-link> ›
-                    <router-link to="/accounting">Akunting</router-link> › Pembayaran Supplier
+                    <router-link to="/accounting">Akunting</router-link> › Pembayaran Suplier
                 </p>
                 <h1 class="judul">Pembayaran supplier</h1>
             </div>
@@ -81,7 +81,7 @@
                     <div class="form">
                         <dl class="ringkas">
                             <div>
-                                <dt>Supplier</dt>
+                                <dt>Suplier</dt>
                                 <dd>{{ pilihan.suplier_detail?.nama }}</dd>
                             </div>
                             <div>

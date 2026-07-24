@@ -21,9 +21,9 @@
 import axios from 'axios'
 
 export const KUNCI_TOKEN = 'pracindo_token'
-
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: { Accept: 'application/json' },
 })
 
@@ -37,7 +37,6 @@ api.interceptors.request.use(
     if (token && !TANPA_TOKEN.some(p => url.includes(p))) {
       config.headers.Authorization = `Token ${token}`
     }
-    // JSON hanya kalau bukan FormData (upload butuh boundary sendiri).
     if (!(config.data instanceof FormData)) {
       config.headers['Content-Type'] = 'application/json'
     }
@@ -52,8 +51,6 @@ api.interceptors.response.use(
     const status = error.response?.status
     const url = error.config?.url || ''
 
-    // 401 pada login = password salah, biarkan form yang menangani.
-    // 401 di tempat lain = token mati/dicabut -> paksa login ulang.
     if (status === 401 && !TANPA_TOKEN.some(p => url.includes(p))) {
       localStorage.removeItem(KUNCI_TOKEN)
       localStorage.removeItem('pracindo_access_card')

@@ -23,15 +23,15 @@
  *
  * ⚠ deviasi_invariant != 0 artinya Σ saldo ≠ Σ fisik — biasanya sisa koreksi
  * opname yang belum direkonsiliasi sesi produksi. Ditampilkan supaya tidak
- * menggantung diam-diam.
+ * menggantung diam-diam. Asumsi arah: deviasi = Σ saldo - Σ fisik (lihat
+ * SPEK-BACKEND.md bagian Gudang; cocokkan dengan serializer backend).
+ *
  */
 
 import { ref, computed } from 'vue'
-// import api from '@/utils/api'
-// import { bacaError } from '@/utils/error'
-import * as mock from '@/mock/warehouseData'
+import api from '@/utils/api'
+import { bacaError } from '@/utils/error'
 
-const MODE_MOCK = true
 
 export function useWarehouse() {
     const stokBahan = ref([])
@@ -48,16 +48,8 @@ export function useWarehouse() {
         isLoading.value = true
         error.value = null
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 350))
-                stokBahan.value = mock.stokBahan
-            } else {
-                // const { data } = await api.get('stock-raw/dashboard/')
-                // stokBahan.value = data.data
-            }
         } catch (err) {
-            error.value = 'Gagal memuat dashboard stok.'
-            // error.value = bacaError(err, 'Gagal memuat dashboard stok.')
+            error.value = bacaError(err, 'Gagal memuat dashboard stok.')
         } finally {
             isLoading.value = false
         }
@@ -66,15 +58,6 @@ export function useWarehouse() {
     const muatBatch = async ({ nama_bahan = '', tersisa = true } = {}) => {
         isLoading.value = true
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 300))
-                daftarBatch.value = mock.daftarBatch
-            } else {
-                // const { data } = await api.get('stock-raw/batch/', {
-                //   params: { nama_bahan, tersisa },
-                // })
-                // daftarBatch.value = data.results || data
-            }
         } catch (err) {
             error.value = 'Gagal memuat data batch.'
         } finally {
@@ -85,15 +68,6 @@ export function useWarehouse() {
     const muatMutasi = async ({ nama_bahan = '', jenis = '' } = {}) => {
         isLoading.value = true
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 300))
-                daftarMutasi.value = mock.daftarMutasi
-            } else {
-                // const { data } = await api.get('stock-raw/mutasi/', {
-                //   params: { nama_bahan, jenis },
-                // })
-                // daftarMutasi.value = data.results || data
-            }
         } catch (err) {
             error.value = 'Gagal memuat ledger mutasi.'
         } finally {
@@ -108,7 +82,8 @@ export function useWarehouse() {
      *
      * ⚠ Selisih opname TIDAK dibebankan ke akun mana pun — invariant
      * Σ saldo == Σ fisik sengaja dibiarkan meleset sampai rekonsiliasi sesi
-     * produksi berikutnya membaginya proporsional.
+     * produksi berikutnya membaginya proporsional. Karena itu,
+     * saldo per akun TIDAK disentuh; yang bergeser justru deviasi_invariant.
      */
     const koreksiBatch = async (batchId, { qty_benar, alasan }) => {
         if (!alasan?.trim()) {
@@ -120,26 +95,15 @@ export function useWarehouse() {
 
         sedangSimpan.value = true
         try {
-            if (MODE_MOCK) {
-                await new Promise(r => setTimeout(r, 500))
-                const b = daftarBatch.value.find(x => x.id === batchId)
-                if (!b) return { success: false, message: 'Batch tidak ditemukan.' }
-                if (Number(b.qty) === Number(qty_benar)) {
-                    return { success: false, message: 'Qty sudah sama, tidak ada yang dikoreksi.' }
-                }
-                b.qty = Number(qty_benar).toFixed(2)
-                return { success: true }
-            }
 
-            // await api.post(`stock-raw/batch/${batchId}/koreksi/`, {
-            //   qty_benar, alasan,
-            // })
-            // await muatBatch()
-            // await muatDashboard()
-            // return { success: true }
+            await api.post(`stock-raw/batch/${batchId}/koreksi/`, {
+              qty_benar, alasan,
+            })
+            await muatBatch()
+            await muatDashboard()
+            return { success: true }
         } catch (err) {
-            return { success: false, message: 'Gagal menyimpan koreksi.' }
-            // return { success: false, message: bacaError(err, 'Gagal menyimpan koreksi.') }
+            return { success: false, message: bacaError(err, 'Gagal menyimpan koreksi.') }
         } finally {
             sedangSimpan.value = false
         }

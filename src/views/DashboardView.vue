@@ -67,7 +67,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWorkOrder } from '@/features/work-order/composables/useWorkOrder'
 import { useAuth } from '@/composables/useAuth'
-import { MODUL, modulUntuk } from '@/config/modules'
+import { MODUL, modulDashboard } from '@/config/modules'
 import ModuleCard from '@/components/ModuleCard.vue'
 import WorkOrderCard from '@/components/WorkOrderCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -84,7 +84,7 @@ const {
     terlambat, fetchMading, approveWO,
 } = useWorkOrder(kartu)
 
-const modulSaya = computed(() => modulUntuk(kartu.value.role))
+const modulSaya = computed(() => modulDashboard(kartu.value.role))
 const namaDepan = computed(() => kartu.value.nama_lengkap.split(' ')[0])
 
 /**

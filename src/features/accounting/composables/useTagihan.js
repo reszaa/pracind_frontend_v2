@@ -14,15 +14,13 @@
  *     RiwayatPembayaranSO    <- cermin RiwayatPembayaranPO
  *     catat_pembayaran_so()  <- cermin catat_pembayaran()
  *
- * Sampai itu ada, MODE_MOCK memakai data contoh untuk sisi piutang.
+ * Sampai itu ada, sisi piutang akan kosong / error dari sales-order/.
  */
 
 import { ref, computed } from 'vue'
-// import api from '@/utils/api'
-// import { bacaError } from '@/utils/error'
-import * as mock from '@/mock/tagihanData'
+import api from '@/utils/api'
+import { bacaError } from '@/utils/error'
 
-const MODE_MOCK = true
 
 /**
  * Sisa tagihan: total dikurangi pembayaran yang MASIH AKTIF.
@@ -55,21 +53,8 @@ export function useTagihan() {
     isLoading.value = true
     error.value = null
     try {
-      if (MODE_MOCK) {
-        await new Promise(r => setTimeout(r, 350))
-        daftarPO.value = mock.daftarPO
-        daftarSO.value = mock.daftarSO
-      } else {
-        // const [po, so] = await Promise.all([
-        //   api.get('purchase-order/'),
-        //   api.get('sales-order/'),
-        // ])
-        // daftarPO.value = po.data.results || po.data
-        // daftarSO.value = so.data.results || so.data
-      }
     } catch (err) {
-      error.value = 'Gagal memuat data tagihan.'
-      // error.value = bacaError(err, 'Gagal memuat data tagihan.')
+      error.value = bacaError(err, 'Gagal memuat data tagihan.')
     } finally {
       isLoading.value = false
     }

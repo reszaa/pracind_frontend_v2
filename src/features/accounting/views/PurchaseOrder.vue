@@ -17,7 +17,7 @@
                 </p>
                 <h1 class="judul">Purchase order</h1>
             </div>
-            <router-link to="/accounting/po/buat" class="tbl tbl--utama">
+            <router-link to="/accounting/transaksi/pembelian" class="tbl tbl--utama">
                 <BaseIcon nama="tambah" :ukuran="15" />
                 Buat PO
             </router-link>

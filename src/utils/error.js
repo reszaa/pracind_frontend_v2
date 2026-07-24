@@ -23,7 +23,7 @@ const LABEL_FIELD = {
   non_field_errors: '',
   detail: '',
   akun: 'Entitas',
-  suplier: 'Supplier',
+  suplier: 'Suplier',
   daftar_item: 'Item',
   nama_item: 'Nama barang',
   quantity: 'Kuantitas',
