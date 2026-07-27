@@ -76,7 +76,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useTagihan } from '@/features/accounting/composables/useTagihan'
+import { useTagihan } from '@/features/accounting/composables/useInvoice'
 import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LoadingBar from '@/components/ui/LoadingBar.vue'

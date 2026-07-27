@@ -1,37 +1,42 @@
 /**
  * src/features/warehouse/composables/useWarehouse.js
  * ===================================================
- * Stok bahan baku. Kontrak backend:
+ * Stok bahan baku. Kontrak backend (dikonfirmasi ke stock_raw/views.py):
  *
- *   GET  stock-raw/dashboard/            ringkasan per bahan + alert + saldo per akun
- *   GET  stock-raw/saldo/                ?akun=&nama_bahan=&berhutang=true
- *   GET  stock-raw/batch/                ?nama_bahan=&no_batch=&tersisa=true
+ *   GET  stock-raw/dashboard/            {data:[{nama_bahan,total_fisik,status,saldo_per_akun}]}
+ *   GET  stock-raw/saldo/                ?akun=&nama_bahan=&berhutang=true   (array polos)
+ *   GET  stock-raw/batch/                ?nama_bahan=&no_batch=&tersisa=true (array polos)
  *   POST stock-raw/batch/{id}/koreksi/   {qty_benar, alasan}   role GUDANG
- *   GET  stock-raw/mutasi/               ?nama_bahan=&jenis=&akun=&no_batch=
+ *   GET  stock-raw/mutasi/               ?nama_bahan=&jenis=&akun=&no_batch= (array polos)
  *
- * DUA LAPIS STOK (ini yang membuat modul ini beda dari inventory biasa):
+ * ⚠ ENVELOPE: dashboard dibungkus {data:[...]} (bukan {results}); batch/saldo/
+ * mutasi array polos (proyek belum pasang pagination DRF). Loader menangani
+ * keduanya secara defensif.
+ *
+ * ⚠ CELAH KONTRAK DASHBOARD — view butuh 4 field yang backend BELUM kirim:
+ *   - deviasi_invariant : DITURUNKAN di sini = Σ saldo_per_akun.qty − total_fisik
+ *                         (arah sesuai SPEK-BACKEND; dibulatkan 2 desimal supaya
+ *                          noise float tidak memunculkan selisih palsu).
+ *   - uom (level bahan) : DITURUNKAN dari saldo_per_akun[0].uom.
+ *   - stok_minimum      : dibaca langsung dari respons; TAMBAHKAN 2 baris di
+ *                         DashboardStokView agar terisi (datanya sudah dipegang
+ *                         services.status_bahan). Sampai itu ada -> null, garis
+ *                         ambang minimum di bar tidak tergambar.
+ *   - fisik_tanki       : butuh app `inventory` (Tanki). Sementara 0 -> segmen
+ *                         biru tangki di bar kosong. Menyusul bareng modul tangki.
+ *
+ * DUA LAPIS STOK:
  *   fisik       BatchGudang   — barang nyata, TIDAK PERNAH minus
  *   kepemilikan SaldoEntitas  — per Akun, BOLEH minus (hutang ke pool gudang)
- *
- * Saldo minus BUKAN error — artinya entitas itu memakai bahan lebih banyak
- * dari yang disetor, dan hutangnya sembuh sendiri saat dia beli/setor lagi.
- * Jangan tampilkan sebagai kesalahan.
- *
- * ⚠ ALERT BERBASIS RAK GUDANG, BUKAN TOTAL. Bahan yang sedang di tangki
- * tidak bisa diambil dari rak, jadi status HABIS/MENIPIS dihitung dari
- * fisik_gudang saja. Isi tangki dilaporkan terpisah.
- *
- * ⚠ deviasi_invariant != 0 artinya Σ saldo ≠ Σ fisik — biasanya sisa koreksi
- * opname yang belum direkonsiliasi sesi produksi. Ditampilkan supaya tidak
- * menggantung diam-diam. Asumsi arah: deviasi = Σ saldo - Σ fisik (lihat
- * SPEK-BACKEND.md bagian Gudang; cocokkan dengan serializer backend).
- *
+ * Saldo minus BUKAN error — sembuh sendiri saat entitas beli/setor lagi.
  */
 
 import { ref, computed } from 'vue'
 import api from '@/utils/api'
 import { bacaError } from '@/utils/error'
 
+/** Bulatkan ke 2 desimal (uom KG) supaya sisa float tak jadi "selisih". */
+const bulat2 = (n) => Math.round(n * 100) / 100
 
 export function useWarehouse() {
     const stokBahan = ref([])
@@ -48,6 +53,24 @@ export function useWarehouse() {
         isLoading.value = true
         error.value = null
         try {
+            const { data } = await api.get('stock-raw/dashboard/')
+            stokBahan.value = (data.data || []).map(b => {
+                const totalFisik = Number(b.total_fisik) || 0
+                const sumSaldo = (b.saldo_per_akun || [])
+                    .reduce((s, x) => s + (Number(x.qty) || 0), 0)
+                return {
+                    ...b,
+                    // total_fisik backend = Σ BatchGudang = STOK RAK. View memakai
+                    // nama `fisik_gudang` untuk itu -> petakan di sini (tanpa ini
+                    // angka utama & bar jadi NaN).
+                    fisik_gudang: totalFisik,
+                    // enrichment field yang backend belum kirim (lihat header):
+                    uom: b.uom ?? b.saldo_per_akun?.[0]?.uom ?? 'KG',
+                    stok_minimum: b.stok_minimum ?? null,
+                    fisik_tanki: b.fisik_tanki ?? 0,
+                    deviasi_invariant: b.deviasi_invariant ?? bulat2(sumSaldo - totalFisik),
+                }
+            })
         } catch (err) {
             error.value = bacaError(err, 'Gagal memuat dashboard stok.')
         } finally {
@@ -57,19 +80,33 @@ export function useWarehouse() {
 
     const muatBatch = async ({ nama_bahan = '', tersisa = true } = {}) => {
         isLoading.value = true
+        error.value = null
         try {
+            const params = new URLSearchParams()
+            if (nama_bahan) params.set('nama_bahan', nama_bahan)
+            if (tersisa) params.set('tersisa', 'true')
+            const { data } = await api.get(`stock-raw/batch/?${params.toString()}`)
+            daftarBatch.value = data.results || data
         } catch (err) {
-            error.value = 'Gagal memuat data batch.'
+            error.value = bacaError(err, 'Gagal memuat data batch.')
         } finally {
             isLoading.value = false
         }
     }
 
-    const muatMutasi = async ({ nama_bahan = '', jenis = '' } = {}) => {
+    const muatMutasi = async ({ nama_bahan = '', jenis = '', akun = '', no_batch = '' } = {}) => {
         isLoading.value = true
+        error.value = null
         try {
+            const params = new URLSearchParams()
+            if (nama_bahan) params.set('nama_bahan', nama_bahan)
+            if (jenis) params.set('jenis', jenis)
+            if (akun) params.set('akun', akun)
+            if (no_batch) params.set('no_batch', no_batch)
+            const { data } = await api.get(`stock-raw/mutasi/?${params.toString()}`)
+            daftarMutasi.value = data.results || data
         } catch (err) {
-            error.value = 'Gagal memuat ledger mutasi.'
+            error.value = bacaError(err, 'Gagal memuat ledger mutasi.')
         } finally {
             isLoading.value = false
         }
@@ -77,13 +114,10 @@ export function useWarehouse() {
 
     /**
      * Stock opname — SET qty batch ke angka hasil hitung ulang.
-     * Alasan WAJIB diisi: ini satu-satunya jalur mengubah fisik tanpa
-     * transaksi, dan backend menolak kalau alasan kosong.
-     *
-     * ⚠ Selisih opname TIDAK dibebankan ke akun mana pun — invariant
-     * Σ saldo == Σ fisik sengaja dibiarkan meleset sampai rekonsiliasi sesi
-     * produksi berikutnya membaginya proporsional. Karena itu,
-     * saldo per akun TIDAK disentuh; yang bergeser justru deviasi_invariant.
+     * Alasan WAJIB (backend menolak kalau kosong). Selisih opname TIDAK
+     * dibebankan ke akun mana pun — invariant Σ saldo == Σ fisik sengaja
+     * dibiarkan meleset sampai rekonsiliasi sesi produksi berikutnya
+     * membaginya proporsional; yang bergeser justru deviasi_invariant.
      */
     const koreksiBatch = async (batchId, { qty_benar, alasan }) => {
         if (!alasan?.trim()) {
@@ -95,10 +129,7 @@ export function useWarehouse() {
 
         sedangSimpan.value = true
         try {
-
-            await api.post(`stock-raw/batch/${batchId}/koreksi/`, {
-              qty_benar, alasan,
-            })
+            await api.post(`stock-raw/batch/${batchId}/koreksi/`, { qty_benar, alasan })
             await muatBatch()
             await muatDashboard()
             return { success: true }
@@ -130,7 +161,7 @@ export function useWarehouse() {
                 if (Number(s.qty) < 0) {
                     hasil.push({
                         nama_bahan: b.nama_bahan,
-                        uom: b.uom,
+                        uom: s.uom ?? b.uom,
                         akun: s.akun_detail?.kode ?? '—',
                         qty: Number(s.qty),
                     })
@@ -140,7 +171,7 @@ export function useWarehouse() {
         return hasil.sort((a, b) => a.qty - b.qty)
     })
 
-    /** Bahan yang Σ saldo-nya tidak cocok dengan Σ fisik. */
+    /** Bahan yang Σ saldo-nya tidak cocok dengan Σ fisik (sudah diturunkan di loader). */
     const deviasi = computed(() =>
         stokBahan.value.filter(b => Number(b.deviasi_invariant) !== 0),
     )

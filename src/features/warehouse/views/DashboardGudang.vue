@@ -5,7 +5,7 @@
   siapa berhutang apa."
 
   Bar dua warna: rak gudang (hijau/kuning/merah sesuai status) dan isi tangki
-  (biru). Garis putih tipis menandai ambang minimum.
+  (biru). Garis tipis menandai ambang minimum.
 
   Alert HABIS/MENIPIS dihitung dari RAK GUDANG saja, bukan total — bahan yang
   sedang di tangki tidak bisa diambil dari rak, jadi gudang kosong dengan
@@ -13,6 +13,14 @@
 
   Saldo minus BUKAN error: entitas memakai lebih banyak dari yang disetor,
   dan hutangnya sembuh sendiri saat dia beli/setor lagi.
+
+  CATATAN DATA (per kontrak backend saat ini):
+  - `fisik_gudang` = total_fisik backend (Σ BatchGudang / stok rak).
+  - `stok_minimum` baru terisi bila DashboardStokView mengirimnya (2 baris
+    tambahan). Selama null: teks minimum + garis ambang disembunyikan, bukan
+    menampilkan "NaN".
+  - `fisik_tanki` butuh app `inventory`; selama 0: segmen biru & baris tangki
+    tidak muncul. Semua tetap tampil rapi tanpa keduanya.
 -->
 <template>
     <div>
@@ -24,7 +32,9 @@
                 <h1 class="judul">Stok bahan baku</h1>
                 <p class="sub">Fisik rak gudang, isi tangki, dan kepemilikan per entitas.</p>
             </div>
-            <router-link to="/warehouse/opname" class="tbl">Stok opname</router-link>
+            <router-link to="/warehouse/opname" class="tbl">
+                <i class="pi pi-check-square"></i> Stok opname
+            </router-link>
         </header>
 
         <section class="metrik">
@@ -34,6 +44,8 @@
             <StatCard label="Selisih pembukuan" :nilai="deviasi.length" kaki="Saldo ≠ fisik"
                 :waspada="deviasi.length > 0" />
         </section>
+
+        <p v-if="error" class="galat">{{ error }}</p>
 
         <div class="dua">
             <!-- ── kiri: posisi bahan ──────────────────────────── -->
@@ -60,9 +72,10 @@
                         <div class="bahan__atas">
                             <div>
                                 <p class="bahan__nama">{{ b.nama_bahan }}</p>
-                                <p class="bahan__min">
+                                <p v-if="b.stok_minimum != null" class="bahan__min">
                                     Minimum {{ angka(b.stok_minimum) }} {{ b.uom }}
                                 </p>
+                                <p v-else class="bahan__min bahan__min--kosong">Ambang minimum belum diset</p>
                             </div>
                             <div class="bahan__angka">
                                 <span class="bahan__qty" :class="`teks--${b.status.toLowerCase()}`">
@@ -79,7 +92,7 @@
                             <span class="ukur__gudang" :class="`isi--${b.status.toLowerCase()}`"
                                 :style="{ width: lebarGudang(b) }"></span>
                             <span class="ukur__tanki" :style="{ width: lebarTanki(b) }"></span>
-                            <span class="ukur__ambang"></span>
+                            <span v-if="adaAmbang(b)" class="ukur__ambang"></span>
                         </div>
 
                         <div class="bahan__bawah">
@@ -87,12 +100,11 @@
                                 + {{ angka(b.fisik_tanki) }} {{ b.uom }} di tangki
                             </span>
                             <span v-if="Number(b.deviasi_invariant) !== 0" class="bahan__deviasi">
-                                Selisih pembukuan {{ angka(b.deviasi_invariant) }} {{ b.uom }}
+                                Selisih pembukuan {{ tandaAngka(b.deviasi_invariant) }} {{ b.uom }}
                             </span>
-                            <span class="bahan__pemilik">
-                                <span v-for="s in b.saldo_per_akun" :key="s.id"
-                                    :class="{ 'minus': Number(s.qty) < 0 }">{{ s.akun_detail?.kode }} {{ angka(s.qty)
-                                    }}</span>
+                            <span v-if="b.saldo_per_akun?.length" class="bahan__pemilik">
+                                <span v-for="s in b.saldo_per_akun" :key="s.id" :class="{ minus: Number(s.qty) < 0 }">{{
+                                    s.akun_detail?.kode }} {{ angka(s.qty) }}</span>
                             </span>
                         </div>
                     </article>
@@ -165,7 +177,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import LoadingBar from '@/components/ui/LoadingBar.vue'
 
 const {
-    tampilBahan, isLoading, cari, saringStatus,
+    tampilBahan, isLoading, error, cari, saringStatus,
     habis, menipis, berhutang, deviasi, muatDashboard,
 } = useWarehouse()
 
@@ -178,23 +190,33 @@ const saringan = [
     { id: 'aman', label: 'Aman' },
 ]
 
+/** Ambang minimum hanya bermakna kalau backend mengirim angkanya (> 0). */
+const adaAmbang = (b) => b.stok_minimum != null && Number(b.stok_minimum) > 0
+
 /**
  * Skala bar dibuat memuat ambang minimum supaya garisnya selalu terlihat.
- * Kalau skalanya cuma total stok, ambang bisa jatuh di luar bar.
+ * Kalau skalanya cuma total stok, ambang bisa jatuh di luar bar. Null-safe:
+ * saat stok_minimum belum ada, skala jatuh ke stok fisik saja.
  */
 const skala = (b) => Math.max(
-    Number(b.fisik_gudang) + Number(b.fisik_tanki),
-    Number(b.stok_minimum) * 1.6,
+    (Number(b.fisik_gudang) || 0) + (Number(b.fisik_tanki) || 0),
+    (Number(b.stok_minimum) || 0) * 1.6,
     1,
 )
 
-const lebarGudang = (b) => `${(Number(b.fisik_gudang) / skala(b)) * 100}%`
-const lebarTanki = (b) => `${(Number(b.fisik_tanki) / skala(b)) * 100}%`
+const lebarGudang = (b) => `${((Number(b.fisik_gudang) || 0) / skala(b)) * 100}%`
+const lebarTanki = (b) => `${((Number(b.fisik_tanki) || 0) / skala(b)) * 100}%`
 const posisiAmbang = (b) =>
-    `${Math.min((Number(b.stok_minimum) / skala(b)) * 100, 99)}%`
+    `${Math.min(((Number(b.stok_minimum) || 0) / skala(b)) * 100, 99)}%`
 
 const angka = (n) =>
-    Number(n).toLocaleString('id-ID', { maximumFractionDigits: 2 })
+    Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 })
+
+/** Selisih pembukuan ditampilkan dengan tanda (+/−) agar arahnya jelas. */
+const tandaAngka = (n) => {
+    const v = Number(n) || 0
+    return `${v > 0 ? '+' : ''}${angka(v)}`
+}
 </script>
 
 <style scoped>
@@ -254,6 +276,16 @@ const angka = (n) =>
 
 .tbl:hover {
     border-color: var(--garis-tegas);
+}
+
+.galat {
+    margin: 0 0 1.25rem;
+    padding: .8rem 1rem;
+    background: var(--merah-latar);
+    border: 1px solid #FECACA;
+    border-radius: var(--lengkung-kecil);
+    font-size: .8125rem;
+    color: var(--merah);
 }
 
 .metrik {
@@ -402,6 +434,11 @@ const angka = (n) =>
     margin: 0;
     font-size: .6875rem;
     color: var(--redup-2);
+}
+
+.bahan__min--kosong {
+    font-style: italic;
+    opacity: .8;
 }
 
 .bahan__angka {

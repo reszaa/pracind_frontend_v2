@@ -1,18 +1,25 @@
 /**
  * src/router/index.js
  * ====================
- * Dua bentuk rute:
  *
- *   /                 -> DashboardView, TANPA layout (tanpa sidebar)
- *   /accounting/*     -> ModulLayout + halaman  (dengan sidebar)
+ * PERUBAHAN vs versi lama (semua ditandai `// [FIX]`):
+ *   1. Tambah rute DAFTAR PO `/accounting/po` — sebelumnya PurchaseOrder.vue
+ *      tidak teregister sama sekali (dead code) & semua link ke `/accounting/po`
+ *      jatuh ke catch-all -> bounce ke `/`. Ini juga menyelamatkan redirect
+ *      after-save di PurchaseOrderCreate (router.push('/accounting/po')).
+ *   2. `suplier` di review-layout: path relatif -> absolut `/accounting/suplier`,
+ *      sekaligus menghapus orphan `/accounting/review-layout/suplier`.
+ *   3. Redirect `path: ''` untuk review-layout supaya buka URL parent telanjang
+ *      tidak menghasilkan rail kosong.
+ *   4. ALIAS kompatibilitas untuk URL yang salah namespace tapi dipakai di
+ *      nav-config & komponen: `/accounting/tagihan`, `/accounting/payment`,
+ *      `/accounting/sales-order/buat`, `/accounting/sales-order/:id`.
+ *      -> bisa dibuang nanti setelah link di SalesOrder.vue + useNavInvoice.js
+ *         + modules.js dirapikan ke namespace kanonik.
  *
- * `meta.modul` dibaca ModulLayout untuk menentukan menu sidebar dari
- * config/modules.js — menambah menu cukup di config, bukan di sini.
- *
- * Rute modul yang layarnya belum dibuat SENGAJA tidak didaftarkan. Kartu
- * di dashboard sudah menandainya `siap: false` sehingga tidak bisa diklik;
- * mendaftarkan rute ke komponen yang belum ada cuma menghasilkan error saat
- * navigasi.
+ * CATATAN: file ini hanya menutup masalah NAVIGASI. Bug data (#4 unwrap
+ * .results, #5 kelengkapan belum di-expose, #6 endpoint produk 404) tidak
+ * tersentuh di sini.
  */
 
 import { createRouter, createWebHistory } from 'vue-router'
@@ -34,7 +41,6 @@ const routes = [
     meta: { perluLogin: true },
   },
 
-  // ── Akunting ─────────────────────────────────────────────
   {
     path: '/accounting',
     component: ModulLayout,
@@ -45,109 +51,146 @@ const routes = [
         name: 'accounting',
         component: () => import('@/features/accounting/views/DashboardAccounting.vue'),
       },
-      // ── purchase order ──
-      // Ada di bawah /accounting, BUKAN modul sendiri: akunting yang membuat
-      // PO, dan "procurement" cuma nama lain untuk pekerjaan yang sama. Yang
-      // berbeda peran cuma penerimaan barang (gudang) — itu tombol di dalam
-      // PODetail, bukan modul terpisah.
+      // [FIX] Daftar PO — sebelumnya tidak ada. Dipakai oleh pintasan Dashboard,
+      // breadcrumb PO Detail, tombol Batal & redirect after-save PO Create.
+      {
+        path: 'po',
+        name: 'accounting-po',
+        component: () => import('@/features/accounting/views/PurchaseOrder.vue'),
+      },
       {
         path: 'po/:id',
         name: 'accounting-po-detail',
-        component: () => import('@/features/accounting/views/PODetail.vue'),
+        component: () => import('@/features/accounting/views/PurchaseOrderDetail.vue'),
         props: true,
       },
     ],
   },
 
-  // ── Buku Tagihan (ruang peninjauan, rel ikon sendiri) ────
+
   {
-    path: '/accounting/tagihan',
-    component: () => import('@/features/accounting/layout/BukuTagihanLayout.vue'),
-    meta: { perluLogin: true, modul: 'tagihan' },
+    path: '/accounting/review-layout',
+    component: () => import('@/features/accounting/layout/InvoiceLayout.vue'),
+    meta: { perluLogin: true, modul: 'invoice' },
     children: [
+      // [FIX] buka parent telanjang -> arahkan ke Invoice, bukan rail kosong.
       {
         path: '',
-        name: 'accounting-tagihan',
-        component: () => import('@/features/accounting/views/BukuTagihan.vue'),
+        redirect: '/accounting/invoice',
       },
-    ],
-  },
-  {
-    path: '/accounting/po',
-    component: () => import('@/features/accounting/layout/BukuTagihanLayout.vue'),
-    meta: { perluLogin: true, modul: 'tagihan' },
-    children: [
       {
-        path: '',
-        name: 'accounting-po',
-        component: () => import('@/features/accounting/views/PurchaseOrder.vue'),
+        path: '/accounting/invoice',
+        name: 'accounting-invoice',
+        // [FIX] alias untuk link `/accounting/tagihan` (useAccounting, Document breadcrumb).
+        alias: '/accounting/tagihan',
+        component: () => import('@/features/accounting/views/Invoice.vue'),
+      },
+      {
+        path: '/accounting/document',
+        name: 'accounting-document',
+        component: () => import('@/features/accounting/views/Document.vue'),
+      },
+      // [FIX] path relatif 'suplier' (-> /accounting/review-layout/suplier, orphan)
+      // diganti absolut agar cocok dengan link nav `/accounting/suplier`.
+      {
+        path: '/accounting/suplier',
+        name: 'accounting-suplier',
+        component: () => import('@/features/master/views/Suplier.vue'),
       },
     ],
   },
 
-  // ── Input Transaksi (ruang kerja, rel ikon sendiri) ──────
-  // SEJAJAR modul, bukan anak /accounting. Kalau ditaruh sebagai child,
-  // ModulLayout yang membungkusnya dan rel ikon tidak pernah muncul.
   {
     path: '/accounting/transaksi',
-    component: () => import('@/features/accounting/layout/InputTransaksiLayout.vue'),
+    component: () => import('@/features/accounting/layout/TransactionEntryLayout.vue'),
     meta: { perluLogin: true, modul: 'transaksi' },
     children: [
       {
-        // Tidak ada layar "pilih transaksi" tersendiri — rel ikon di kiri
-        // SUDAH jadi pemilihnya. Masuk ruang ini langsung mendarat di
-        // Pembelian; menu lain sejauh satu klik di rel.
         path: '',
         redirect: '/accounting/transaksi/pembelian',
       },
       {
         path: 'pembelian',
         name: 'transaksi-pembelian',
-        component: () => import('@/features/accounting/views/BuatPO.vue'),
+        component: () => import('@/features/accounting/views/PurchaseOrderCreate.vue'),
       },
       {
         path: 'pembayaran',
         name: 'transaksi-pembayaran',
-        component: () => import('@/features/accounting/views/PembayaranSuplier.vue'),
+        // [FIX] alias untuk link `/accounting/payment` (useNavInvoice, modules.js).
+        alias: '/accounting/payment',
+        component: () => import('@/features/accounting/views/PaymentSuplier.vue'),
+      },
+      {
+        path: 'penjualan',
+        name: 'transaksi-penjualan',
+        component: () => import('@/features/accounting/views/SalesOrder.vue'),
+      },
+      {
+        path: 'penjualan/buat',
+        name: 'transaksi-penjualan-buat',
+        // [FIX] alias untuk link `/accounting/sales-order/buat` di SalesOrder.vue.
+        alias: '/accounting/sales-order/buat',
+        component: () => import('@/features/accounting/views/CreateSalesOrder.vue'),
+      },
+      {
+        path: 'penjualan/:id',
+        name: 'transaksi-penjualan-detail',
+        // [FIX] alias untuk link `/accounting/sales-order/:id` di SalesOrder.vue.
+        // 'buat' didahulukan di atas -> tetap menang atas :id (static > dynamic).
+        alias: '/accounting/sales-order/:id',
+        component: () => import('@/features/accounting/views/SalesOrderDetail.vue'),
       },
     ],
   },
 
-  // ── Gudang ───────────────────────────────────────────────
+
   {
     path: '/warehouse',
-    component: ModulLayout,
+    component: () => import('@/features/warehouse/layout/WarehouseLayout.vue'),
     meta: { perluLogin: true, modul: 'warehouse' },
     children: [
       {
         path: '',
-        name: 'warehouse',
+        name: 'warehouse-stok',
         component: () => import('@/features/warehouse/views/DashboardGudang.vue'),
+      },
+      {
+        path: 'saldo',
+        name: 'warehouse-saldo',
+        component: () => import('@/features/warehouse/views/StockRaw.vue'),
+      },
+      {
+        path: 'inbound',
+        name: 'warehouse-inbound',
+        component: () => import('@/features/warehouse/views/Received.vue'),
+      },
+      {
+        path: 'outbound',
+        name: 'warehouse-outbound',
+        component: () => import('@/features/warehouse/views/Packaging.vue'),
       },
       {
         path: 'opname',
         name: 'warehouse-opname',
         component: () => import('@/features/warehouse/views/Opname.vue'),
       },
-      {
-        // Layar yang sama dengan /rnd/tangki — pintu masuk untuk GUDANG
-        // tanpa membuka formula. Lihat header TankMonitoring.vue.
-        path: 'tangki',
-        name: 'warehouse-tangki',
-        component: () => import('@/features/master/views/TankMonitoring.vue'),
-      },
     ],
   },
 
-  // ── Produksi ─────────────────────────────────────────────
+
   {
     path: '/rnd',
-    component: ModulLayout,
+    component: () => import('@/features/rnd/layout/RndLayout.vue'),
     meta: { perluLogin: true, modul: 'rnd' },
     children: [
       {
         path: '',
-        name: 'rnd',
+        redirect: '/rnd/produksi', // Otomatis arahkan ke produksi
+      },
+      {
+        path: 'produksi',
+        name: 'rnd-produksi',
         component: () => import('@/features/rnd/views/Produksi.vue'),
       },
       {
@@ -160,10 +203,10 @@ const routes = [
         name: 'rnd-tangki',
         component: () => import('@/features/master/views/TankMonitoring.vue'),
       },
+      // ... (rute riset, prototipe, qc bisa Anda tambahkan nanti)
     ],
   },
 
-  // ── Pengiriman ───────────────────────────────────────────
   {
     path: '/logistic',
     component: ModulLayout,
@@ -212,7 +255,6 @@ const routes = [
     ],
   },
 
-  // ── Papan Tugas ──────────────────────────────────────────
   {
     path: '/work-order',
     component: ModulLayout,

@@ -1,21 +1,6 @@
 <!--
-  src/features/accounting/layout/InputTransaksiLayout.vue
-  =======================================================
-  Versi Tailwind — struktur, kelas, dan gaya mengikuti file referensi apa
-  adanya. BUTUH Tailwind v4 terpasang (lihat instruksi di jawaban chat);
-  tanpa itu halaman render polos tanpa gaya.
-
-  Yang disesuaikan dengan proyek ini:
-    1. `menus` diisi rute yang BENAR-BENAR ADA. Daftar di referensi
-       (/accounting/procurement, /suplier, /customer, /dokumen, /belanja)
-       tidak terdaftar di router kita — lima dari enam ikon akan mati.
-       Sumbernya useNavTransaksi supaya rel dan kartu pemilih di
-       InputTransaksi.vue tidak pernah berbeda isi. HANYA transaksi —
-       Daftar PO dan Buku tagihan ada di modul Akunting, bukan di sini.
-    2. useLayout diimpor dari '@/composables/', bukan '@/utils/'.
-    3. useAuth kita mengekspor `logout`, bukan `handleLogout`.
-    4. Item ber-`siap: false` (Penjualan) tampil redup dan tidak bisa
-       diklik — backend sales_order belum punya service.
+  src/features/accounting/layout/InvoiceLayout.vue
+  ================================================
 -->
 <template>
     <div class="flex h-screen bg-[#F8FAFC] font-sans text-slate-700 overflow-hidden relative">
@@ -27,7 +12,7 @@
                     class="p-2 rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors">
                     <i class="pi pi-bars text-xl"></i>
                 </button>
-                <span class="font-bold text-slate-800 text-base md:text-lg">Input Transaksi</span>
+                <span class="font-bold text-slate-800 text-base md:text-lg">Invoice & Document</span>
             </div>
 
             <button @click="kembali"
@@ -55,18 +40,18 @@
                 </div>
 
                 <nav class="flex flex-col gap-3 lg:gap-4 w-full px-4">
-                    <button v-for="menu in transaksi" :key="menu.id" :disabled="!menu.siap" @click="klikMenu(menu)"
+                    <button v-for="item in menu" :key="item.id" :disabled="!item.activate" @click="klikMenu(item)"
                         class="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 relative mx-auto group"
-                        :class="menu.siap
-                            ? (aktif(menu.rute) ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600')
+                        :class="item.activate
+                            ? (aktif(item.rute) ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600')
                             : 'text-slate-300 cursor-default'">
 
                         <i
-                            :class="['pi', menu.ikon, 'text-lg lg:text-xl', 'transition-transform', menu.siap ? 'group-hover:scale-110' : '']"></i>
+                            :class="['pi', item.ikon, 'text-lg lg:text-xl', 'transition-transform', item.activate ? 'group-hover:scale-110' : '']"></i>
 
                         <span
                             class="absolute left-16 bg-slate-800 text-white text-[11px] lg:text-xs font-semibold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg transition-opacity">
-                            {{ menu.label }}<template v-if="!menu.siap"> · segera</template>
+                            {{ item.label }}<template v-if="!item.activate"> · segera</template>
                         </span>
                     </button>
 
@@ -104,21 +89,21 @@ import { watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useLayout } from '@/composables/useLayout'
-import { useNavTransaksi } from '@/features/accounting/composables/useNavTransaksi'
+
+import { useNavInvoice } from '@/features/accounting/composables/useNavInvoice'
 
 const route = useRoute()
 const router = useRouter()
 const { logout } = useAuth()
 const { sidebarAktif, isMobile, toggleSidebar, tutupDiMobile } = useLayout()
-const { transaksi, aktif } = useNavTransaksi()
 
-// Kembali ke DASHBOARD, bukan /accounting: sejak Input Transaksi jadi modul
-// sendiri di dashboard, pintu masuk dan pintu keluarnya harus sama tempat.
+const { menu, aktif } = useNavInvoice()
+
 const kembali = () => router.push('/')
 
-const klikMenu = (menu) => {
-    if (!menu.siap) return
-    router.push(menu.rute)
+const klikMenu = (item) => {
+    if (!item.activate) return
+    router.push(item.rute)
     tutupDiMobile()
 }
 

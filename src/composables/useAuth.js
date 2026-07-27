@@ -101,8 +101,6 @@ export function useAuth() {
             sedangProses.value = false
         }
     }
-
-    /** Daftar entitas (PT/CV) untuk dropdown form daftar — tanpa perlu login. */
     const muatEntitas = async () => {
         try {
             const { data } = await api.get('staff_user/entitas-publik/')
@@ -112,10 +110,6 @@ export function useAuth() {
         }
     }
 
-    /**
-     * Rehydrate saat reload: pastikan token hidup dan kartu terkini
-     * (role bisa diubah Supervisor kapan saja). Dipanggil App.vue onMounted.
-     */
     const muatUlangKartu = async () => {
         if (!token.value) return false
         try {
@@ -124,7 +118,6 @@ export function useAuth() {
             localStorage.setItem(KUNCI_KARTU, JSON.stringify(data))
             return true
         } catch {
-            // 401 sudah ditangani interceptor (redirect ke login).
             return false
         }
     }

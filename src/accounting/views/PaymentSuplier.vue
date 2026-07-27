@@ -151,7 +151,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { usePembayaran } from '@/features/accounting/composables/usePembayaran'
+import { usePembayaran } from '@/features/accounting/composables/usePayment'
 import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LoadingBar from '@/components/ui/LoadingBar.vue'

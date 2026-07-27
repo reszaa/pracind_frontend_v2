@@ -1,6 +1,6 @@
 <template>
   <div class="wo-panel">
-    <!-- ── kepala ──────────────────────────────────────────── -->
+    <!--   kepala   -->
     <header class="panel__kepala">
       <div>
         <p class="stensil">Papan tugas</p>
@@ -12,13 +12,12 @@
           {{ terlambat.length }} lewat tenggat
         </p>
       </div>
-
       <button class="tombol-utama" @click="formTerbuka = !formTerbuka">
         {{ formTerbuka ? 'Tutup' : 'Tugas baru' }}
       </button>
     </header>
 
-    <!-- ── form buat tugas ─────────────────────────────────── -->
+    <!--   form buat tugas   -->
     <transition name="buka">
       <form v-if="formTerbuka" class="form" @submit.prevent="kirim">
         <div class="form__baris">
@@ -42,7 +41,7 @@
           </label>
           <label class="isian">
             <span class="isian__label">Tenggat <em>opsional</em></span>
-            <input v-model="draf.deadline" type="datetime-local" />
+            <input v-model="draf.deadline" type="date" />
           </label>
         </div>
 
@@ -71,44 +70,18 @@
       </form>
     </transition>
 
-    <!-- ── daftar ──────────────────────────────────────────── -->
     <div v-if="isLoading && !mading.length" class="memuat">
       <span class="memuat__garis"></span> Membaca papan tugas
     </div>
 
     <TransitionGroup v-else-if="mading.length" name="kartu" tag="div" class="daftar">
-      <article v-for="wo in mading" :key="wo.id" class="wo" :class="{ 'wo--telat': wo.terlambat }">
-        <div class="wo__atas">
-          <span class="wo__nomor">{{ wo.nomor }}</span>
-          <span v-if="wo.terlambat" class="wo__telat">Lewat tenggat</span>
-          <span v-else-if="labelTenggat(wo)" class="wo__tenggat">{{ labelTenggat(wo) }}</span>
-        </div>
-
-        <h2 class="wo__judul">{{ wo.judul }}</h2>
-        <p v-if="wo.deskripsi" class="wo__deskripsi">{{ wo.deskripsi }}</p>
-
-        <div class="wo__bawah">
-          <div class="wo__orang">
-            <span v-for="p in wo.penugasan" :key="p.id" class="wo__tag"
-              :class="{ 'wo__tag--saya': p.staff === staffId }">
-              {{ p.staff_nama }}
-            </span>
-          </div>
-
-          <button v-if="bisaApprove(wo)" class="wo__setuju" :disabled="sedangApprove === wo.id" @click="setujui(wo)">
-            {{ sedangApprove === wo.id ? 'Menyimpan' : 'Sudah dikerjakan' }}
-          </button>
-          <span v-else class="wo__bukan-saya">Bukan tugas kamu</span>
-        </div>
-
-        <p class="wo__dari">Dari {{ wo.dibuat_oleh_username }}</p>
-      </article>
+      <WorkOrderCard v-for="wo in mading" :key="wo.id" :wo="wo" :staffId="staffId" :sibuk="sedangApprove === wo.id"
+        @approve="setujui" />
     </TransitionGroup>
 
     <div v-else class="kosong">
       <p class="kosong__pesan">Papan kosong.</p>
       <p class="kosong__petunjuk">
-        Semua tugas yang ditujukan ke kamu sudah dikerjakan.
       </p>
     </div>
   </div>
@@ -118,6 +91,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useWorkOrder } from '@/features/work-order/composables/useWorkOrder'
 import { useAuth } from '@/composables/useAuth'
+
+// [FIX] Import komponen WorkOrderCard
+import WorkOrderCard from '@/components/WorkOrderCard.vue'
 
 // Identitas dari sesi login (useAuth), BUKAN dari mock — supaya papan tugas
 // dan dashboard menilai "tugas saya" dengan kartu yang sama.
@@ -162,59 +138,54 @@ const kirim = async () => {
     pesanForm.value = 'Pilih minimal satu orang yang dituju.'
     return
   }
+
+
   const hasil = await buatWO({
     judul: draf.judul,
     deskripsi: draf.deskripsi,
     staffIds: draf.staffIds,
     tanggal: draf.tanggal,
-    deadline: draf.deadline ? new Date(draf.deadline).toISOString() : null,
+    deadline: draf.deadline ? draf.deadline : null,
   })
+
   if (hasil.success) batal()
   else pesanForm.value = hasil.message
 }
-
 const setujui = async (wo) => {
   const hasil = await approveWO(wo)
   if (!hasil.success) pesanForm.value = hasil.message
-}
-
-const labelTenggat = (wo) => {
-  if (!wo.deadline) return ''
-  const d = new Date(wo.deadline)
-  const jam = Math.round((d - Date.now()) / 3_600_000)
-  if (jam < 0) return ''
-  if (jam < 24) return `${jam} jam lagi`
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 </script>
 
 <style scoped>
 .wo-panel {
-  --latar: #12100E;
-  --panel: #1E1A17;
-  --panel-terang: #262119;
-  --garis: #2C2621;
-  --garis-terang: #453C33;
-  --teks: #F5F1E8;
-  --redup: #8C8378;
-  --merah: #C8102E;
-  --kuning: #E8A33D;
-  --hijau: #4A7C59;
+  /* Hapus variabel dark mode, gunakan fallback warna terang modern */
+  --latar: var(--global-latar, #F8FAFC);
+  --panel: var(--global-panel, #FFFFFF);
+  --panel-terang: var(--global-panel-terang, #F1F5F9);
+  --garis: var(--global-garis, #E2E8F0);
+  --garis-tegas: var(--global-garis-tegas, #CBD5E1);
+  --teks: var(--global-teks, #0F172A);
+  --redup: var(--global-redup, #64748B);
+  --redup-2: var(--global-redup-2, #94A3B8);
+  --merah: var(--global-merah, #EF4444);
+  --kuning: var(--global-kuning, #F59E0B);
+  --hijau: var(--global-hijau, #10B981);
+  --biru: var(--global-biru, #3B82F6);
 
   background: var(--latar);
   color: var(--teks);
   min-height: 100vh;
   padding: 2rem clamp(1rem, 4vw, 3rem) 4rem;
   font-family: 'Inter', system-ui, sans-serif;
-  font-variant-numeric: tabular-nums;
 }
 
 .stensil {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--redup);
+  color: var(--biru);
   margin: 0;
 }
 
@@ -231,23 +202,29 @@ const labelTenggat = (wo) => {
 
 .panel__judul {
   margin: 0.5rem 0 0;
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
-  font-weight: 200;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
+  color: var(--teks);
 }
 
 .panel__judul span {
-  font-size: 0.9375rem;
-  font-weight: 400;
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--redup);
   margin-left: 0.5rem;
 }
 
 .panel__telat {
-  margin: 0.5rem 0 0;
+  margin: 0.75rem 0 0;
   font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--merah);
+  background: #FEF2F2;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  display: inline-block;
 }
 
 /* tombol */
@@ -255,42 +232,40 @@ const labelTenggat = (wo) => {
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--latar);
-  background: var(--teks);
+  color: #FFFFFF;
+  background: var(--biru);
   border: none;
+  border-radius: 6px;
   padding: 0.6rem 1.1rem;
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .tombol-utama:hover:not(:disabled) {
-  opacity: 0.85;
+  background: #2563EB;
 }
 
 .tombol-utama:disabled {
-  opacity: 0.45;
-  cursor: default;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .tombol-sepi {
   font-family: inherit;
   font-size: 0.8125rem;
-  color: var(--redup);
-  background: none;
-  border: 1px solid var(--garis);
+  font-weight: 500;
+  color: var(--teks);
+  background: #FFFFFF;
+  border: 1px solid var(--garis-tegas);
+  border-radius: 6px;
   padding: 0.6rem 1.1rem;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .tombol-sepi:hover {
-  color: var(--teks);
-  border-color: var(--garis-terang);
-}
-
-.tombol-utama:focus-visible,
-.tombol-sepi:focus-visible {
-  outline: 2px solid var(--kuning);
-  outline-offset: 2px;
+  background: var(--latar);
 }
 
 /* form */
@@ -299,10 +274,12 @@ const labelTenggat = (wo) => {
   padding: 1.5rem;
   background: var(--panel);
   border: 1px solid var(--garis);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .form__baris {
-  margin-bottom: 1.1rem;
+  margin-bottom: 1.25rem;
 }
 
 .form__baris--dua {
@@ -320,7 +297,7 @@ const labelTenggat = (wo) => {
 .isian {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
   border: none;
   padding: 0;
   margin: 0;
@@ -331,19 +308,17 @@ const labelTenggat = (wo) => {
 }
 
 .isian__label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--redup);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--teks);
   padding: 0;
 }
 
 .isian__label em {
   font-style: normal;
   font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
+  color: var(--redup);
+  margin-left: 0.25rem;
 }
 
 .isian input,
@@ -351,22 +326,25 @@ const labelTenggat = (wo) => {
   font-family: inherit;
   font-size: 0.875rem;
   color: var(--teks);
-  background: var(--latar);
-  border: 1px solid var(--garis);
+  background: var(--panel);
+  border: 1px solid var(--garis-tegas);
+  border-radius: 6px;
   padding: 0.65rem 0.75rem;
   width: 100%;
   resize: vertical;
+  transition: border-color 0.15s;
 }
 
 .isian input:focus,
 .isian textarea:focus {
   outline: none;
-  border-color: var(--kuning);
+  border-color: var(--biru);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .isian input::placeholder,
 .isian textarea::placeholder {
-  color: var(--redup);
+  color: var(--redup-2);
 }
 
 .isian__bantu {
@@ -386,9 +364,11 @@ const labelTenggat = (wo) => {
   font-family: inherit;
   text-align: left;
   font-size: 0.8125rem;
-  color: var(--redup);
-  background: var(--latar);
-  border: 1px solid var(--garis);
+  font-weight: 500;
+  color: var(--teks);
+  background: var(--panel);
+  border: 1px solid var(--garis-tegas);
+  border-radius: 6px;
   padding: 0.5rem 0.7rem;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -396,183 +376,67 @@ const labelTenggat = (wo) => {
 
 .staf small {
   display: block;
-  font-size: 0.625rem;
-  opacity: 0.7;
-  margin-top: 0.1rem;
+  font-size: 0.6875rem;
+  color: var(--redup);
+  font-weight: 400;
+  margin-top: 0.15rem;
 }
 
 .staf:hover {
-  border-color: var(--garis-terang);
-  color: var(--teks);
+  border-color: var(--biru);
 }
 
 .staf--pilih {
-  color: var(--latar);
-  background: var(--kuning);
-  border-color: var(--kuning);
-}
-
-.staf:focus-visible {
-  outline: 2px solid var(--kuning);
-  outline-offset: 2px;
+  color: var(--biru);
+  background: #EFF6FF;
+  border-color: var(--biru);
 }
 
 .form__galat {
   margin: 0 0 1rem;
   font-size: 0.8125rem;
-  color: var(--merah);
+  color: #B91C1C;
+  background: #FEF2F2;
+  padding: 0.75rem;
+  border-radius: 6px;
 }
 
 .form__aksi {
   display: flex;
   gap: 0.6rem;
   justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--garis);
 }
 
 /* daftar */
 .daftar {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0.75rem;
   margin-top: 1.5rem;
-}
-
-.wo {
-  padding: 1.2rem;
-  background: var(--panel);
-  border: 1px solid var(--garis);
-  border-left: 2px solid var(--garis-terang);
-  transition: background 0.18s ease;
-}
-
-.wo:hover {
-  background: var(--panel-terang);
-}
-
-.wo--telat {
-  border-left-color: var(--merah);
-}
-
-.wo__atas {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  margin-bottom: 0.55rem;
-}
-
-.wo__nomor {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--redup);
-}
-
-.wo__telat {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--merah);
-}
-
-.wo__tenggat {
-  font-size: 0.6875rem;
-  color: var(--redup);
-}
-
-.wo__judul {
-  margin: 0 0 0.35rem;
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.wo__deskripsi {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--redup);
-  line-height: 1.5;
-}
-
-.wo__bawah {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 0.9rem;
-}
-
-.wo__orang {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.wo__tag {
-  font-size: 0.6875rem;
-  color: var(--redup);
-  padding: 0.15rem 0.45rem;
-  border: 1px solid var(--garis);
-}
-
-.wo__tag--saya {
-  color: var(--teks);
-  border-color: var(--garis-terang);
-}
-
-.wo__setuju {
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--latar);
-  background: var(--hijau);
-  border: none;
-  padding: 0.45rem 0.85rem;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.wo__setuju:hover:not(:disabled) {
-  opacity: 0.85;
-}
-
-.wo__setuju:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.wo__setuju:focus-visible {
-  outline: 2px solid var(--kuning);
-  outline-offset: 2px;
-}
-
-.wo__bukan-saya {
-  font-size: 0.6875rem;
-  color: var(--redup);
-}
-
-.wo__dari {
-  margin: 0.65rem 0 0;
-  font-size: 0.6875rem;
-  color: var(--redup);
 }
 
 /* kosong & memuat */
 .kosong {
-  padding: 3rem 0 3rem 1.25rem;
-  border-left: 2px solid var(--hijau);
+  padding: 2.5rem 2rem;
+  background: var(--panel);
+  border: 1px dashed var(--garis-tegas);
+  border-radius: 12px;
   margin-top: 1.5rem;
+  text-align: center;
 }
 
 .kosong__pesan {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--teks);
 }
 
 .kosong__petunjuk {
-  margin: 0.4rem 0 0;
+  margin: 0.5rem 0 0;
   font-size: 0.875rem;
   color: var(--redup);
 }
@@ -592,13 +456,14 @@ const labelTenggat = (wo) => {
   background: var(--garis);
   overflow: hidden;
   position: relative;
+  border-radius: 2px;
 }
 
 .memuat__garis::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--kuning);
+  background: var(--biru);
   animation: geser 1.1s ease-in-out infinite;
 }
 
@@ -624,6 +489,7 @@ const labelTenggat = (wo) => {
   opacity: 0;
   max-height: 0;
   margin-block: 0;
+  padding-block: 0;
 }
 
 .buka-enter-to,
@@ -649,20 +515,5 @@ const labelTenggat = (wo) => {
 
 .kartu-move {
   transition: transform 0.3s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .memuat__garis::after {
-    animation: none;
-    opacity: 0.5;
-  }
-
-  .buka-enter-active,
-  .buka-leave-active,
-  .kartu-enter-active,
-  .kartu-leave-active,
-  .kartu-move {
-    transition: none;
-  }
 }
 </style>

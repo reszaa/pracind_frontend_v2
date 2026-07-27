@@ -49,8 +49,16 @@ export function useAccounting() {
         isLoading.value = true
         error.value = null
         try {
-        } catch (err) {
-            error.value = bacaError(err, 'Gagal memuat data akunting.')
+            const [poRes, soRes] = await Promise.allSettled([
+                api.get('purchase-order/'),
+                api.get('sales-order/'),
+            ])
+            daftarPO.value = poRes.status === 'fulfilled'
+                ? (poRes.value.data?.results || poRes.value.data || []) : []
+            if (poRes.status === 'rejected')
+                error.value = bacaError(poRes.reason, 'Gagal memuat purchase order.')
+            daftarSO.value = soRes.status === 'fulfilled'
+                ? (soRes.value.data?.results || soRes.value.data || []) : []
         } finally {
             isLoading.value = false
         }
@@ -131,8 +139,6 @@ export function useAccounting() {
                 urutan: 4, jenis: 'dokumen', tingkat: 'biasa',
                 judul: `${po.nomor} dokumen belum lengkap`,
                 detail: `Menunggu ${kurang} — ${po.suplier_detail?.nama ?? '—'}`,
-                // Langsung ke PO-nya — panel kelengkapan ada di PODetail.
-                // (/accounting/dokumen tidak pernah terdaftar sebagai rute.)
                 tautan: `/accounting/po/${po.id}`,
             })
         }

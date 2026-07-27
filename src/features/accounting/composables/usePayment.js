@@ -44,12 +44,16 @@ export function usePembayaran() {
     const sedangSimpan = ref(false)
     const error = ref(null)
     const cari = ref('')
-    const pilihan = ref(null)   // PO yang sedang dibayar
+    const pilihan = ref(null)
+
 
     const muat = async () => {
         isLoading.value = true
         error.value = null
         try {
+            // Ambil data PO dari backend
+            const { data } = await api.get('purchase-order/')
+            daftarPO.value = Array.isArray(data) ? data : (data.results || data.data || [])
         } catch (err) {
             error.value = bacaError(err, 'Gagal memuat data purchase order.')
         } finally {
@@ -57,11 +61,12 @@ export function usePembayaran() {
         }
     }
 
-    /** PO yang masih punya sisa — terurut jatuh tempo terdekat. */
     const belumLunas = computed(() => {
         const q = cari.value.trim().toLowerCase()
         return daftarPO.value
             .filter(po => po.status_pembayaran !== 'PAID' && !po.dibatalkan_pada)
+            .filter(po => po.status_penerimaan !== 'BELUM_DITERIMA')
+
             .filter(po => !q
                 || po.nomor.toLowerCase().includes(q)
                 || (po.suplier_detail?.nama ?? '').toLowerCase().includes(q))
@@ -101,7 +106,6 @@ export function usePembayaran() {
         if (!angka || angka <= 0) {
             return { success: false, message: 'Nominal harus lebih dari 0.' }
         }
-        // Umpan balik cepat — backend tetap yang menegakkan.
         if (angka > po.sisa) {
             return {
                 success: false,

@@ -1,18 +1,6 @@
 <!--
-  src/features/accounting/views/BuatPO.vue
-  ==========================================  ===============================================
-  Form buat PO. Beberapa hal yang berbeda dari versi frontend lama:
-
-  1. Entitas dan supplier dikirim sebagai PRIMARY KEY, bukan string. Versi
-     lama mengirim "PT" dan "PT Anu" — itu kontrak backend lama.
-  2. Nomor PO TIDAK dirakit di client. Backend yang membuatnya; preview di
-     sini cuma perkiraan dan diberi label "sementara" karena angkanya bisa
-     bergeser kalau ada PO lain dibuat bersamaan.
-  3. Quantity: item TIMBANGAN = unit_kg × total_unit; item HITUNGAN
-     (kemasan/pcs, unit_kg kosong atau 0) = total_unit saja. Ini cermin
-     data backend: PO kemasan 'Pail 25KG' tersimpan dengan unit_kg 0 dan
-     quantity == total_unit. Versi lama form ini menuntut unit_kg > 0,
-     sehingga PO kemasan MUSTAHIL di-submit.
+  src/features/accounting/views/PurchaseOrderCreate.vue
+  ======================================================
 -->
 <template>
     <div>
@@ -24,7 +12,16 @@
                 </p>
                 <h1 class="judul">Buat purchase order</h1>
             </div>
+
+            <!-- TOMBOL TAMBAH SUPLIER CEPAT -->
+            <button type="button" class="tbl tbl--utama" @click="tampilModalSuplier = true">
+                <i class="pi pi-plus" style="margin-right: 4px;"></i> Suplier Baru
+            </button>
         </header>
+
+        <!-- MODAL QUICK CREATE SUPPLIER -->
+        <SupplierQuickAddDialog v-if="tampilModalSuplier" @close="tampilModalSuplier = false"
+            @saved="onSuplierBaruTersimpan" />
 
         <form @submit.prevent="kirim">
             <!-- ── header ──────────────────────────────────────── -->
@@ -94,7 +91,8 @@
                 <div class="panel__kepala">
                     <div>
                         <h2 class="panel__judul">Rincian item</h2>
-                        <p class="panel__sub">Qty = unit/kg × jml unit — kosongkan unit/kg untuk barang hitungan (pcs)</p>
+                        <p class="panel__sub">Qty = unit/kg × jml unit — kosongkan unit/kg untuk barang hitungan (pcs)
+                        </p>
                     </div>
                     <button type="button" class="tbl" @click="tambahItem">
                         <BaseIcon nama="tambah" :ukuran="14" /> Tambah item
@@ -161,15 +159,31 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePurchaseOrder } from '@/features/accounting/composables/usePurchaseOrder'
+import { useToast } from '@/composables/useToast'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import SupplierQuickAddDialog from '@/components/ui/SupplierQuickAddDialog.vue'
 
 const router = useRouter()
+const toast = useToast()
+
 const {
     daftarAkun, daftarSuplier, sedangSimpan, muat, previewNomor, buatPO,
 } = usePurchaseOrder()
 
 const pesan = ref('')
 const nomorPreview = ref(null)
+
+// ===== STATE & FUNGSI MODAL SUPLIER =====
+const tampilModalSuplier = ref(false)
+
+const onSuplierBaruTersimpan = (suplierBaru) => {
+    tampilModalSuplier.value = false
+    // Memasukkan suplier baru ke list dropdown
+    daftarSuplier.value.push(suplierBaru)
+    // Otomatis memilih suplier baru di form draf
+    draf.suplier = suplierBaru.id
+}
+// ========================================
 
 const hariIni = () => {
     const t = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
@@ -260,8 +274,12 @@ const kirim = async () => {
         })),
     })
 
-    if (hasil.success) router.push('/accounting/po')
-    else pesan.value = hasil.message
+    if (hasil.success) {
+        toast.success('Purchase Order berhasil diterbitkan!')
+        router.push('/accounting/po')
+    } else {
+        pesan.value = hasil.message
+    }
 }
 
 const rp = (n) =>
@@ -272,6 +290,11 @@ const angka = (n) =>
 
 <style scoped>
 .kepala {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    flex-wrap: wrap;
     margin-bottom: 1.5rem;
 }
 

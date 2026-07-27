@@ -56,20 +56,22 @@ const tenggat = computed(() => {
 
 <style scoped>
 .wo {
-    background: var(--panel);
-    border: 1px solid var(--garis);
-    border-left: 3px solid var(--garis);
-    border-radius: var(--lengkung-kecil);
-    padding: 1.15rem;
-    transition: border-color .16s ease;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left: 4px solid #CBD5E1;
+    border-radius: 8px;
+    padding: 1.25rem;
+    transition: all .2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .wo:hover {
-    border-color: var(--garis-tegas);
+    border-color: #94A3B8;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .wo--telat {
-    border-left-color: var(--merah);
+    border-left-color: #EF4444;
 }
 
 .wo__atas {
@@ -77,14 +79,14 @@ const tenggat = computed(() => {
     justify-content: space-between;
     align-items: baseline;
     gap: 1rem;
-    margin-bottom: .45rem;
+    margin-bottom: .6rem;
 }
 
 .wo__nomor {
     font-size: .6875rem;
-    font-weight: 600;
-    letter-spacing: .04em;
-    color: var(--redup-2);
+    font-weight: 700;
+    letter-spacing: .05em;
+    color: #64748B;
 }
 
 .wo__telat {
@@ -92,75 +94,85 @@ const tenggat = computed(() => {
     font-weight: 700;
     letter-spacing: .06em;
     text-transform: uppercase;
-    color: var(--merah);
+    color: #B91C1C;
+    background: #FEF2F2;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
 }
 
 .wo__tempo {
-    font-size: .6875rem;
-    color: var(--redup);
+    font-size: .75rem;
+    font-weight: 500;
+    color: #64748B;
 }
 
 .wo__judul {
-    margin: 0 0 .35rem;
-    font-size: .9375rem;
+    margin: 0 0 .4rem;
+    font-size: 1rem;
     font-weight: 600;
+    color: #0F172A;
     line-height: 1.4;
 }
 
 .wo__desk {
     margin: 0;
-    font-size: .8125rem;
-    color: var(--redup);
+    font-size: .875rem;
+    color: #475569;
     line-height: 1.5;
 }
 
 .wo__bawah {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
     gap: .75rem;
     flex-wrap: wrap;
-    margin-top: 1rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #E2E8F0;
 }
 
 .wo__orang {
     display: flex;
-    gap: .3rem;
+    gap: .4rem;
     flex-wrap: wrap;
 }
 
 .wo__tag {
-    font-size: .6875rem;
-    color: var(--redup);
-    background: var(--latar);
-    padding: .15rem .45rem;
-    border-radius: 5px;
+    font-size: .75rem;
+    color: #64748B;
+    background: #F1F5F9;
+    padding: .25rem .6rem;
+    border-radius: 999px;
+    font-weight: 500;
 }
 
 .wo__tag--saya {
-    color: var(--teks);
-    font-weight: 500;
+    color: #2563EB;
+    background: #EFF6FF;
 }
 
 .wo__ok {
     font-family: inherit;
-    font-size: .75rem;
+    font-size: .8125rem;
     font-weight: 600;
     color: #fff;
-    background: var(--hijau);
+    background: #10B981;
     border: none;
-    padding: .45rem .8rem;
-    border-radius: var(--lengkung-kecil);
+    padding: .5rem 1rem;
+    border-radius: 6px;
     cursor: pointer;
-    transition: opacity .15s ease;
+    transition: all .15s ease;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
 }
 
 .wo__ok:hover:not(:disabled) {
-    opacity: .88;
+    background: #059669;
 }
 
 .wo__ok:disabled {
-    opacity: .5;
-    cursor: default;
+    background: #94A3B8;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 </style>

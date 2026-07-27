@@ -13,7 +13,7 @@
 
 import { ref } from 'vue'
 
-export const TITIK_PUTUS = 1024   // samakan dengan @media di CSS
+export const TITIK_PUTUS = 1024
 
 const sidebarAktif = ref(false)
 const isMobile = ref(false)
@@ -22,8 +22,6 @@ const perbarui = () => {
   const mobileSebelumnya = isMobile.value
   isMobile.value = window.innerWidth < TITIK_PUTUS
 
-  // Hanya paksa buka saat BERPINDAH dari mobile ke desktop — kalau tidak,
-  // sidebar yang sengaja ditutup di desktop akan terbuka sendiri tiap resize.
   if (mobileSebelumnya && !isMobile.value) {
     sidebarAktif.value = true
   }
@@ -43,7 +41,7 @@ if (typeof window !== 'undefined') {
   }
   window.addEventListener('resize', onResize)
 
-  // Bersihkan saat hot-reload (Vite) supaya listener tidak menumpuk.
+
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
       clearTimeout(timer)
@@ -57,7 +55,6 @@ export function useLayout() {
     sidebarAktif.value = !sidebarAktif.value
   }
 
-  /** Panggil setelah navigasi — di mobile sidebar harus menutup sendiri. */
   const tutupDiMobile = () => {
     if (isMobile.value) sidebarAktif.value = false
   }
@@ -67,7 +64,6 @@ export function useLayout() {
     isMobile,
     toggleSidebar,
     tutupDiMobile,
-    // alias nama lama supaya komponen yang sudah ada tidak pecah
     isSidebarActive: sidebarAktif,
     closeSidebarOnMobile: tutupDiMobile,
   }
